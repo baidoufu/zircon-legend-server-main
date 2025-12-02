@@ -1,0 +1,307 @@
+@page
+@model SystemModel
+@{
+    ViewData["Title"] = "系统管理";
+    ViewData["ActivePage"] = "System";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-0">系统管理</h4>
+        <small class="text-muted">服务器状态、配置修改、数据管理</small>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        @Model.Message
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Server Status -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-server display-4 @(Model.ServerStarted ? "text-success" : "text-danger")"></i>
+                <h5 class="mt-2">服务器状态</h5>
+                <span class="badge @(Model.ServerStarted ? "bg-success" : "bg-danger") fs-6">
+                    @(Model.ServerStarted ? "运行中" : "已停止")
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-memory display-4 text-info"></i>
+                <h5 class="mt-2">内存使用</h5>
+                <span class="fs-5">@Model.MemoryUsage</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-clock-history display-4 text-warning"></i>
+                <h5 class="mt-2">运行时间</h5>
+                <span class="fs-6">@Model.Uptime</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-people display-4 text-primary"></i>
+                <h5 class="mt-2">在线人数</h5>
+                <span class="fs-3 fw-bold text-primary">@Model.OnlineCount</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Config Editor -->
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <i class="bi bi-sliders"></i> 服务器配置修改 <span class="badge bg-danger">需要 SuperAdmin 权限</span>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="UpdateConfig">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">游戏端口</label>
+                    <input type="number" class="form-control" name="port" value="@Model.ServerPort" min="1" max="65535">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">最高等级</label>
+                    <input type="number" class="form-control" name="maxLevel" value="@Model.MaxLevel" min="1" max="255">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">经验倍率</label>
+                    <input type="number" class="form-control" name="expRate" value="@Model.ExperienceRate" min="0" max="9999999">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">掉落倍率</label>
+                    <input type="number" class="form-control" name="dropRate" value="@Model.DropRate" min="0" max="9999999">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">金币倍率</label>
+                    <input type="number" class="form-control" name="goldRate" value="@Model.GoldRate" min="0" max="9999999">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">最高转生</label>
+                    <input type="number" class="form-control" name="maxRebirth" value="@Model.MaxRebirth" min="0" max="10">
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-check-lg"></i> 保存配置
+                </button>
+                <small class="text-muted ms-2">注：端口修改需要重启服务器才能生效</small>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-lightning"></i> 快捷操作
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <form method="post" asp-page-handler="SaveData">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save"></i> 保存用户数据
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-2">
+                <form method="post" asp-page-handler="SaveSystem">
+                    <button type="submit" class="btn btn-info w-100">
+                        <i class="bi bi-database"></i> 保存系统数据
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-2">
+                <form method="post" asp-page-handler="GC">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="bi bi-recycle"></i> 垃圾回收
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-2">
+                <form method="post" asp-page-handler="KickAll" onsubmit="return confirm('确定要踢出所有玩家吗？')">
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-people-fill"></i> 踢出所有玩家
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <form method="post" asp-page-handler="RestartServer" class="d-flex" onsubmit="return confirm('确定要重启服务器吗？')">
+                    <input type="number" class="form-control me-2" name="delay" value="60" min="0" max="300" style="width: 100px;" placeholder="延迟秒">
+                    <button type="submit" class="btn btn-danger flex-grow-1">
+                        <i class="bi bi-arrow-repeat"></i> 重启服务器
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Features -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-toggles"></i> 功能开关
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <form method="post" asp-page-handler="ToggleLogin">
+                    <input type="hidden" name="allow" value="@(!Model.AllowLogin ? "true" : "false")">
+                    <button type="submit" class="btn @(Model.AllowLogin ? "btn-success" : "btn-outline-danger") w-100">
+                        <i class="bi @(Model.AllowLogin ? "bi-check-circle" : "bi-x-circle")"></i>
+                        账号登录: @(Model.AllowLogin ? "开启" : "关闭")
+                    </button>
+                </form>
+                <small class="text-muted d-block mt-1">普通玩家账号验证</small>
+            </div>
+            <div class="col-md-3">
+                <form method="post" asp-page-handler="ToggleStartGame">
+                    <input type="hidden" name="allow" value="@(!Model.AllowStartGame ? "true" : "false")">
+                    <button type="submit" class="btn @(Model.AllowStartGame ? "btn-success" : "btn-outline-danger") w-100">
+                        <i class="bi @(Model.AllowStartGame ? "bi-check-circle" : "bi-x-circle")"></i>
+                        进入游戏: @(Model.AllowStartGame ? "开启" : "关闭")
+                    </button>
+                </form>
+                <small class="text-muted d-block mt-1">角色进入游戏世界</small>
+            </div>
+            <div class="col-md-3">
+                <form method="post" asp-page-handler="ToggleRegister">
+                    <input type="hidden" name="allow" value="@(!Model.AllowNewAccount ? "true" : "false")">
+                    <button type="submit" class="btn @(Model.AllowNewAccount ? "btn-success" : "btn-outline-danger") w-100">
+                        <i class="bi @(Model.AllowNewAccount ? "bi-check-circle" : "bi-x-circle")"></i>
+                        注册功能: @(Model.AllowNewAccount ? "开启" : "关闭")
+                    </button>
+                </form>
+                <small class="text-muted d-block mt-1">新账号注册</small>
+            </div>
+            <div class="col-md-3">
+                <form method="post" asp-page-handler="ToggleNewCharacter">
+                    <input type="hidden" name="allow" value="@(!Model.AllowNewCharacter ? "true" : "false")">
+                    <button type="submit" class="btn @(Model.AllowNewCharacter ? "btn-success" : "btn-outline-danger") w-100">
+                        <i class="bi @(Model.AllowNewCharacter ? "bi-check-circle" : "bi-x-circle")"></i>
+                        创建角色: @(Model.AllowNewCharacter ? "开启" : "关闭")
+                    </button>
+                </form>
+                <small class="text-muted d-block mt-1">新建游戏角色</small>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="btn @(Model.AdminEnabled ? "btn-success" : "btn-outline-secondary") w-100 disabled">
+                    <i class="bi @(Model.AdminEnabled ? "bi-check-circle" : "bi-x-circle")"></i>
+                    管理后台: @(Model.AdminEnabled ? "开启" : "关闭")
+                </div>
+                <small class="text-muted d-block mt-1">配置文件设置</small>
+            </div>
+            <div class="col-md-3">
+                <div class="btn @(Model.TestServer ? "btn-warning" : "btn-outline-secondary") w-100 disabled">
+                    <i class="bi @(Model.TestServer ? "bi-check-circle" : "bi-x-circle")"></i>
+                    测试服务器: @(Model.TestServer ? "是" : "否")
+                </div>
+                <small class="text-muted d-block mt-1">配置文件设置</small>
+            </div>
+        </div>
+        <div class="alert alert-info mt-3 mb-0">
+            <i class="bi bi-info-circle"></i> <strong>说明：</strong>
+            <ul class="mb-0 mt-2">
+                <li><strong>账号登录</strong> - 关闭后普通玩家无法登录账号（管理员不受影响）</li>
+                <li><strong>进入游戏</strong> - 关闭后所有玩家无法进入游戏世界（维护模式）</li>
+                <li><strong>注册功能</strong> - 关闭后无法注册新账号</li>
+                <li><strong>创建角色</strong> - 关闭后无法创建新角色</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Database Stats -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-database"></i> 数据库统计
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td><i class="bi bi-person-badge"></i> 账户总数</td>
+                            <td class="text-end"><strong>@Model.AccountCount.ToString("N0")</strong></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-person"></i> 角色总数</td>
+                            <td class="text-end"><strong>@Model.CharacterCount.ToString("N0")</strong></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-box-seam"></i> 物品定义</td>
+                            <td class="text-end"><strong>@Model.ItemInfoCount.ToString("N0")</strong></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-bug"></i> 怪物定义</td>
+                            <td class="text-end"><strong>@Model.MonsterInfoCount.ToString("N0")</strong></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-map"></i> 地图数量</td>
+                            <td class="text-end"><strong>@Model.MapCount.ToString("N0")</strong></td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-ethernet"></i> 当前连接</td>
+                            <td class="text-end"><strong>@Model.ConnectionCount.ToString("N0")</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-gear"></i> 当前配置
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td>服务器地址</td>
+                            <td class="text-end"><code>@Model.ServerIP:@Model.ServerPort</code></td>
+                        </tr>
+                        <tr>
+                            <td>管理后台端口</td>
+                            <td class="text-end"><code>@Model.AdminPort</code></td>
+                        </tr>
+                        <tr>
+                            <td>最高等级</td>
+                            <td class="text-end"><strong>@Model.MaxLevel</strong></td>
+                        </tr>
+                        <tr>
+                            <td>最高转生</td>
+                            <td class="text-end"><strong>@Model.MaxRebirth</strong></td>
+                        </tr>
+                        <tr>
+                            <td>经验/掉落/金币倍率</td>
+                            <td class="text-end">
+                                <span class="badge bg-info">@(Model.ExperienceRate == 0 ? "1" : Model.ExperienceRate.ToString())x</span>
+                                <span class="badge bg-success">@(Model.DropRate == 0 ? "1" : Model.DropRate.ToString())x</span>
+                                <span class="badge bg-warning text-dark">@(Model.GoldRate == 0 ? "1" : Model.GoldRate.ToString())x</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

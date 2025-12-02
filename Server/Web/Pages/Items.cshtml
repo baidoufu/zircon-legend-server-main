@@ -1,0 +1,388 @@
+@page
+@model ItemsModel
+@{
+    ViewData["Title"] = "物品管理";
+    ViewData["ActivePage"] = "Items";
+}
+
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0">物品管理</h4>
+            <small class="text-muted">查看物品列表、新建物品、给予玩家物品</small>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="createItem()">
+            <i class="bi bi-plus-lg"></i> 新建物品
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        @Model.Message
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">搜索物品</label>
+                <input type="text" class="form-control" name="Keyword" value="@Model.Keyword" placeholder="物品名称或ID">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">物品类型</label>
+                <select class="form-select" name="ItemType">
+                    <option value="">全部类型</option>
+                    <option value="Nothing" selected="@(Model.ItemType == "Nothing")">Nothing</option>
+                    <option value="Weapon" selected="@(Model.ItemType == "Weapon")">武器</option>
+                    <option value="Armour" selected="@(Model.ItemType == "Armour")">防具</option>
+                    <option value="Helmet" selected="@(Model.ItemType == "Helmet")">头盔</option>
+                    <option value="Necklace" selected="@(Model.ItemType == "Necklace")">项链</option>
+                    <option value="Bracelet" selected="@(Model.ItemType == "Bracelet")">手镯</option>
+                    <option value="Ring" selected="@(Model.ItemType == "Ring")">戒指</option>
+                    <option value="Shoes" selected="@(Model.ItemType == "Shoes")">鞋子</option>
+                    <option value="Book" selected="@(Model.ItemType == "Book")">书籍</option>
+                    <option value="Potion" selected="@(Model.ItemType == "Potion")">药水</option>
+                    <option value="Consumable" selected="@(Model.ItemType == "Consumable")">消耗品</option>
+                    <option value="Ore" selected="@(Model.ItemType == "Ore")">矿石</option>
+                    <option value="Meat" selected="@(Model.ItemType == "Meat")">肉类</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Give Item Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-gift"></i> 给予物品
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="GiveItem" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">玩家名称</label>
+                <input type="text" class="form-control" name="playerName" id="givePlayerName" required placeholder="在线玩家名称">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">物品ID</label>
+                <input type="number" class="form-control" name="itemIndex" id="giveItemIndex" required placeholder="物品索引">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">数量</label>
+                <input type="number" class="form-control" name="count" value="1" min="1" max="9999999">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-plus-circle"></i> 给予
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Items Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-seam"></i> 物品列表</span>
+        <span class="badge bg-primary">共 @Model.TotalCount 件</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>等级需求</th>
+                        <th>价格</th>
+                        <th>堆叠</th>
+                        <th>品质</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Any())
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td><code>@item.Index</code></td>
+                                <td>
+                                    <strong class="@GetRarityClass(item.Rarity)">@item.ItemName</strong>
+                                </td>
+                                <td><span class="badge bg-secondary">@item.ItemType</span></td>
+                                <td>@item.RequiredAmount</td>
+                                <td>@item.Price.ToString("N0")</td>
+                                <td>@item.StackSize</td>
+                                <td><span class="badge @GetRarityBadgeClass(item.Rarity)">@item.Rarity</span></td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary"
+                                                onclick="editItem(@item.Index)"
+                                                title="编辑">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success"
+                                                onclick="fillGiveItem(@item.Index, '@item.ItemName')"
+                                                title="给予">
+                                            <i class="bi bi-gift"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox display-6"></i>
+                                <p class="mb-0 mt-2">没有找到物品</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if (Model.TotalPages > 1)
+    {
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    @for (int i = 1; i <= Model.TotalPages && i <= 10; i++)
+                    {
+                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                            <a class="page-link" href="?Keyword=@Model.Keyword&ItemType=@Model.ItemType&CurrentPage=@i">@i</a>
+                        </li>
+                    }
+                    @if (Model.TotalPages > 10)
+                    {
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?Keyword=@Model.Keyword&ItemType=@Model.ItemType&CurrentPage=@Model.TotalPages">@Model.TotalPages</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+</div>
+
+<!-- Item Modal (Create/Edit) -->
+<div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="itemModalTitle"><i class="bi bi-box-seam"></i> 新建物品</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="itemForm">
+                <div class="modal-body">
+                    <input type="hidden" name="itemIndex" id="editItemIndex">
+
+                    <!-- Basic Info -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> 基本信息</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">物品名称 *</label>
+                            <input type="text" class="form-control" name="itemName" id="editItemName" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">物品类型</label>
+                            <select class="form-select" name="itemType" id="editItemType">
+                                <option value="0">Nothing</option>
+                                <option value="1">Weapon (武器)</option>
+                                <option value="2">Armour (防具)</option>
+                                <option value="3">Helmet (头盔)</option>
+                                <option value="4">Necklace (项链)</option>
+                                <option value="5">Bracelet (手镯)</option>
+                                <option value="6">Ring (戒指)</option>
+                                <option value="7">Shoes (鞋子)</option>
+                                <option value="8">Book (书籍)</option>
+                                <option value="9">Potion (药水)</option>
+                                <option value="10">Ore (矿石)</option>
+                                <option value="11">Meat (肉类)</option>
+                                <option value="12">Consumable (消耗品)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">品质</label>
+                            <select class="form-select" name="rarity" id="editRarity">
+                                <option value="0">Common (普通)</option>
+                                <option value="1">Superior (优秀)</option>
+                                <option value="2">Elite (精英)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">需求类型</label>
+                            <select class="form-select" name="requiredType" id="editRequiredType">
+                                <option value="0">None</option>
+                                <option value="1">Level (等级)</option>
+                                <option value="2">AC (防御)</option>
+                                <option value="3">MR (魔防)</option>
+                                <option value="4">DC (攻击)</option>
+                                <option value="5">MC (魔法)</option>
+                                <option value="6">SC (道术)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">需求数值</label>
+                            <input type="number" class="form-control" name="requiredAmount" id="editRequiredAmount" min="0" max="9999999" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">职业限制</label>
+                            <select class="form-select" name="requiredClass" id="editRequiredClass">
+                                <option value="0">None (无限制)</option>
+                                <option value="1">Warrior (战士)</option>
+                                <option value="2">Wizard (法师)</option>
+                                <option value="4">Taoist (道士)</option>
+                                <option value="7">All (全职业)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">性别限制</label>
+                            <select class="form-select" name="requiredGender" id="editRequiredGender">
+                                <option value="0">None (无限制)</option>
+                                <option value="1">Male (男)</option>
+                                <option value="2">Female (女)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-bar-chart"></i> 属性</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">形状 (Shape)</label>
+                            <input type="number" class="form-control" name="shape" id="editShape" min="0" max="9999999" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">图像 (Image)</label>
+                            <input type="number" class="form-control" name="image" id="editImage" min="0" max="9999999" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">耐久度</label>
+                            <input type="number" class="form-control" name="durability" id="editDurability" min="0" max="9999999" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">重量</label>
+                            <input type="number" class="form-control" name="weight" id="editWeight" min="0" max="9999999" value="0">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">价格</label>
+                            <input type="number" class="form-control" name="price" id="editPrice" min="0" max="9999999" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">堆叠数量</label>
+                            <input type="number" class="form-control" name="stackSize" id="editStackSize" min="1" max="9999999" value="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">特殊效果</label>
+                            <input type="number" class="form-control" name="effect" id="editEffect" min="0" max="9999999" value="0" title="ItemEffect枚举值">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted me-auto"><i class="bi bi-exclamation-triangle"></i> 需要 SuperAdmin 权限</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetRarityClass(string rarity)
+    {
+        return rarity switch
+        {
+            "Common" => "text-secondary",
+            "Superior" => "text-success",
+            "Elite" => "text-primary",
+            _ => ""
+        };
+    }
+
+    string GetRarityBadgeClass(string rarity)
+    {
+        return rarity switch
+        {
+            "Common" => "bg-secondary",
+            "Superior" => "bg-success",
+            "Elite" => "bg-primary",
+            _ => "bg-secondary"
+        };
+    }
+}
+
+<script>
+function fillGiveItem(itemIndex, itemName) {
+    document.getElementById('giveItemIndex').value = itemIndex;
+    document.getElementById('givePlayerName').focus();
+}
+
+function createItem() {
+    // Reset form
+    document.getElementById('itemForm').reset();
+    document.getElementById('itemForm').action = '/Items?handler=CreateItem';
+    document.getElementById('editItemIndex').value = '';
+    document.getElementById('itemModalTitle').innerHTML = '<i class="bi bi-plus-lg"></i> 新建物品';
+
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+function editItem(itemIndex) {
+    // Fetch item details
+    fetch(`/Items?handler=ItemDetail&itemIndex=${itemIndex}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+                // Fill form
+                document.getElementById('itemForm').action = '/Items?handler=UpdateItem';
+                document.getElementById('editItemIndex').value = data.index;
+                document.getElementById('editItemName').value = data.itemName;
+                document.getElementById('editItemType').value = data.itemType;
+                document.getElementById('editRequiredClass').value = data.requiredClass;
+                document.getElementById('editRequiredGender').value = data.requiredGender;
+                document.getElementById('editRequiredType').value = data.requiredType;
+                document.getElementById('editRequiredAmount').value = data.requiredAmount;
+                document.getElementById('editShape').value = data.shape;
+                document.getElementById('editEffect').value = data.effect;
+                document.getElementById('editImage').value = data.image;
+                document.getElementById('editDurability').value = data.durability;
+                document.getElementById('editPrice').value = data.price;
+                document.getElementById('editWeight').value = data.weight;
+                document.getElementById('editStackSize').value = data.stackSize;
+                document.getElementById('editRarity').value = data.rarity;
+
+                document.getElementById('itemModalTitle').innerHTML = '<i class="bi bi-pencil"></i> 编辑物品 [' + data.index + ']';
+                new bootstrap.Modal(document.getElementById('itemModal')).show();
+            } else {
+                alert('加载物品信息失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error);
+        });
+}
+</script>

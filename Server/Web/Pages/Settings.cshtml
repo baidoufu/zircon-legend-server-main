@@ -1,0 +1,278 @@
+@page
+@model SettingsModel
+@{
+    ViewData["Title"] = "配置管理";
+    ViewData["ActivePage"] = "Settings";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-0">
+            <i class="bi bi-sliders"></i> 配置管理
+        </h4>
+        <small class="text-muted">管理 Server.ini 中的所有配置项，修改后自动持久化保存</small>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-@Model.MessageType alert-dismissible fade show" role="alert">
+        <i class="bi @(Model.MessageType == "success" ? "bi-check-circle" : Model.MessageType == "warning" ? "bi-exclamation-triangle" : "bi-x-circle")"></i>
+        @Model.Message
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (Model.ConfigSections.Count == 0)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-shield-exclamation"></i> 权限不足或配置加载失败
+    </div>
+}
+else
+{
+    <!-- 操作按钮 -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-danger me-2">需要 SuperAdmin 权限</span>
+                    <span class="text-muted small">
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                        标有 <span class="badge bg-warning text-dark">需重启</span> 的配置项修改后需要重启服务器才能生效
+                    </span>
+                </div>
+                <div>
+                    <form method="post" asp-page-handler="Reload" class="d-inline">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('确定要从 Server.ini 重新加载配置吗？未保存的修改将丢失！')">
+                            <i class="bi bi-arrow-clockwise"></i> 重新加载
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 导航 -->
+    <ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+        @foreach (var section in Model.ConfigSections)
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(section.Name == Model.ActiveTab ? "active" : "")"
+                        id="tab-@(section.Name)"
+                        data-bs-toggle="tab"
+                        data-bs-target="#content-@(section.Name)"
+                        type="button"
+                        role="tab"
+                        aria-controls="content-@(section.Name)"
+                        aria-selected="@(section.Name == Model.ActiveTab ? "true" : "false")">
+                    <i class="bi @(section.Icon) me-1"></i>
+                    @(section.DisplayName)
+                    <span class="badge bg-secondary ms-1">@(section.Items.Count)</span>
+                </button>
+            </li>
+        }
+    </ul>
+
+    <!-- Tab 内容 -->
+    <div class="tab-content" id="configTabContent">
+        @foreach (var section in Model.ConfigSections)
+        {
+            <div class="tab-pane fade @(section.Name == Model.ActiveTab ? "show active" : "")"
+                 id="content-@(section.Name)"
+                 role="tabpanel"
+                 aria-labelledby="tab-@(section.Name)">
+
+                <form method="post" asp-page-handler="SaveSection">
+                    <input type="hidden" name="section" value="@(section.Name)" />
+                    <input type="hidden" name="returnTab" value="@(section.Name)" />
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi @(section.Icon) me-1"></i>
+                                <strong>@(section.DisplayName)</strong>
+                                <small class="text-muted ms-2">@(section.Description)</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-save"></i> 保存此分组
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @foreach (var item in section.Items)
+                                {
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="config-item p-2 border rounded h-100">
+                                            <label class="form-label mb-1 d-flex align-items-center">
+                                                <strong>@item.DisplayName</strong>
+                                                @if (item.RequiresRestart)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-2" title="修改后需要重启服务器">需重启</span>
+                                                }
+                                            </label>
+                                            <small class="text-muted d-block mb-2">@item.Description</small>
+
+                                            @if (item.ValueType == typeof(bool))
+                                            {
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox"
+                                                           class="form-check-input"
+                                                           id="config_@item.Key"
+                                                           name="config_@item.Key"
+                                                           @(item.Value != null && (bool)item.Value ? "checked" : "") />
+                                                    <label class="form-check-label" for="config_@item.Key">
+                                                        @(item.Value != null && (bool)item.Value ? "已启用" : "已禁用")
+                                                    </label>
+                                                </div>
+                                            }
+                                            else if (item.ValueType == typeof(TimeSpan))
+                                            {
+                                                var ts = item.Value as TimeSpan? ?? TimeSpan.Zero;
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text"
+                                                           class="form-control"
+                                                           id="config_@item.Key"
+                                                           name="config_@item.Key"
+                                                           value="@ts.ToString(@"hh\:mm\:ss")"
+                                                           placeholder="HH:mm:ss 或 分钟数" />
+                                                    <span class="input-group-text">@Model.ConfigServiceInstance.FormatValue(item.Value, item.ValueType)</span>
+                                                </div>
+                                            }
+                                            else if (item.ValueType == typeof(DateTime))
+                                            {
+                                                var dt = item.Value as DateTime? ?? DateTime.Now;
+                                                <input type="datetime-local"
+                                                       class="form-control form-control-sm"
+                                                       id="config_@item.Key"
+                                                       name="config_@item.Key"
+                                                       value="@dt.ToString("yyyy-MM-ddTHH:mm")" />
+                                            }
+                                            else if (item.ValueType == typeof(int) || item.ValueType == typeof(uint) ||
+                                                     item.ValueType == typeof(long) || item.ValueType == typeof(short) ||
+                                                     item.ValueType == typeof(ushort) || item.ValueType == typeof(byte))
+                                            {
+                                                <input type="number"
+                                                       class="form-control form-control-sm"
+                                                       id="config_@item.Key"
+                                                       name="config_@item.Key"
+                                                       value="@item.Value" />
+                                            }
+                                            else if (item.Key.Contains("Password") || item.Key.Contains("密码"))
+                                            {
+                                                <div class="input-group input-group-sm">
+                                                    <input type="password"
+                                                           class="form-control"
+                                                           id="config_@item.Key"
+                                                           name="config_@item.Key"
+                                                           value="@item.Value" />
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('config_@item.Key')">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <input type="text"
+                                                       class="form-control form-control-sm"
+                                                       id="config_@item.Key"
+                                                       name="config_@item.Key"
+                                                       value="@item.Value" />
+                                            }
+
+                                            <small class="text-muted d-block mt-1">
+                                                <code>[@(section.Name)] @item.Key</code>
+                                                <span class="float-end text-info">@item.ValueType.Name</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        }
+    </div>
+
+    <!-- 配置统计 -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col">
+                    <h5 class="mb-0">@Model.ConfigSections.Count</h5>
+                    <small class="text-muted">配置分组</small>
+                </div>
+                <div class="col">
+                    <h5 class="mb-0">@Model.ConfigSections.Sum(s => s.Items.Count)</h5>
+                    <small class="text-muted">配置项总数</small>
+                </div>
+                <div class="col">
+                    <h5 class="mb-0">@Model.ConfigSections.Sum(s => s.Items.Count(i => i.RequiresRestart))</h5>
+                    <small class="text-muted">需重启项</small>
+                </div>
+                <div class="col">
+                    <h5 class="mb-0">@Model.ConfigSections.Sum(s => s.Items.Count(i => i.ValueType == typeof(bool)))</h5>
+                    <small class="text-muted">开关项</small>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Styles {
+<style>
+    .config-item {
+        background-color: #f8f9fa;
+        transition: all 0.2s;
+    }
+    .config-item:hover {
+        background-color: #e9ecef;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .nav-tabs .nav-link {
+        color: #6c757d;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+    .form-check-input:checked {
+        background-color: #198754;
+        border-color: #198754;
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    // 切换密码显示
+    function togglePassword(inputId) {
+        var input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+        } else {
+            input.type = "password";
+        }
+    }
+
+    // 更新开关标签
+    document.querySelectorAll('.form-check-input').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            var label = this.nextElementSibling;
+            if (label) {
+                label.textContent = this.checked ? '已启用' : '已禁用';
+            }
+        });
+    });
+
+    // 保存当前Tab到URL
+    document.querySelectorAll('#configTabs button').forEach(function(tab) {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            var tabName = event.target.getAttribute('data-bs-target').replace('#content-', '');
+            var url = new URL(window.location);
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState({}, '', url);
+        });
+    });
+</script>
+}

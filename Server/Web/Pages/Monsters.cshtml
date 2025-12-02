@@ -1,0 +1,456 @@
+@page
+@model MonstersModel
+@{
+    ViewData["Title"] = "怪物管理";
+    ViewData["ActivePage"] = "Monsters";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-0">怪物管理</h4>
+        <small class="text-muted">怪物列表、召唤怪物、修改属性、清除怪物</small>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        @Model.Message
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Spawn Monster Form -->
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <i class="bi bi-bug"></i> 召唤怪物
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="SpawnMonster" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">目标玩家</label>
+                <input type="text" class="form-control" name="playerName" id="spawnPlayerName" required placeholder="在线玩家名称">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">怪物ID</label>
+                <input type="number" class="form-control" name="monsterIndex" id="spawnMonsterIndex" required placeholder="怪物索引">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">数量</label>
+                <input type="number" class="form-control" name="count" value="1" min="1" max="9999999">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">范围</label>
+                <input type="number" class="form-control" name="range" value="5" min="1" max="20" title="在玩家周围多少格内随机生成">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-danger w-100">
+                    <i class="bi bi-plus-circle"></i> 召唤
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Kill Map Monsters -->
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <i class="bi bi-trash"></i> 清除地图怪物
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="KillMapMonsters" class="row g-3" onsubmit="return confirm('确定要清除该玩家所在地图的所有怪物吗？')">
+            <div class="col-md-4">
+                <label class="form-label">目标玩家（清除其所在地图的怪物）</label>
+                <input type="text" class="form-control" name="playerName" required placeholder="在线玩家名称">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-warning w-100">
+                    <i class="bi bi-x-circle"></i> 清除地图怪物
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" class="form-control" name="Keyword" value="@Model.Keyword" placeholder="搜索怪物名称或ID...">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Monsters Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bug"></i> 怪物列表</span>
+        <div>
+            <button type="button" class="btn btn-success btn-sm me-2" onclick="createMonster()">
+                <i class="bi bi-plus-lg"></i> 新建怪物
+            </button>
+            <span class="badge bg-primary">共 @Model.TotalCount 种怪物</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>等级</th>
+                        <th>经验</th>
+                        <th>HP</th>
+                        <th>防御</th>
+                        <th>攻击</th>
+                        <th>视野</th>
+                        <th>类型</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Monsters.Any())
+                    {
+                        @foreach (var monster in Model.Monsters)
+                        {
+                            <tr>
+                                <td><code>@monster.Index</code></td>
+                                <td>
+                                    <strong class="@(monster.IsBoss ? "text-danger" : "")">
+                                        @monster.MonsterName
+                                        @if (monster.IsBoss)
+                                        {
+                                            <span class="badge bg-danger ms-1">BOSS</span>
+                                        }
+                                    </strong>
+                                </td>
+                                <td>@monster.Level</td>
+                                <td>@monster.Experience.ToString("N0")</td>
+                                <td>@monster.HP.ToString("N0")</td>
+                                <td>@monster.MinAC - @monster.MaxAC</td>
+                                <td>@monster.MinDC - @monster.MaxDC</td>
+                                <td>@monster.ViewRange</td>
+                                <td>
+                                    @if (monster.IsBoss)
+                                    {
+                                        <span class="badge bg-danger">Boss</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">普通</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary"
+                                                onclick="editMonster(@monster.Index)"
+                                                title="编辑属性">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger"
+                                                onclick="fillSpawnMonster(@monster.Index, '@monster.MonsterName')"
+                                                title="召唤此怪物">
+                                            <i class="bi bi-plus-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="10" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox display-6"></i>
+                                <p class="mb-0 mt-2">没有找到怪物</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if (Model.TotalPages > 1)
+    {
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    @for (int i = 1; i <= Model.TotalPages && i <= 10; i++)
+                    {
+                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                            <a class="page-link" href="?Keyword=@Model.Keyword&CurrentPage=@i">@i</a>
+                        </li>
+                    }
+                    @if (Model.TotalPages > 10)
+                    {
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?Keyword=@Model.Keyword&CurrentPage=@Model.TotalPages">@Model.TotalPages</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+</div>
+
+<!-- Monster Modal (Create/Edit) -->
+<div class="modal fade" id="monsterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" id="monsterModalHeader">
+                <h5 class="modal-title" id="monsterModalTitle"><i class="bi bi-pencil"></i> 编辑怪物属性</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="monsterForm">
+                <div class="modal-body">
+                    <input type="hidden" name="monsterIndex" id="editMonsterIndex">
+
+                    <!-- Basic Info -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> 基本信息</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">怪物名称</label>
+                            <input type="text" class="form-control" name="monsterName" id="editMonsterName" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">等级</label>
+                            <input type="number" class="form-control" name="level" id="editLevel" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">经验值</label>
+                            <input type="number" class="form-control" name="experience" id="editExperience" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">视野范围</label>
+                            <input type="number" class="form-control" name="viewRange" id="editViewRange" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">冷眼等级</label>
+                            <input type="number" class="form-control" name="coolEye" id="editCoolEye" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">攻击延迟(ms)</label>
+                            <input type="number" class="form-control" name="attackDelay" id="editAttackDelay" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">移动延迟(ms)</label>
+                            <input type="number" class="form-control" name="moveDelay" id="editMoveDelay" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <!-- Flags -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="isBoss" id="editIsBoss" value="true">
+                                <label class="form-check-label" for="editIsBoss">Boss</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="undead" id="editUndead" value="true">
+                                <label class="form-check-label" for="editUndead">亡灵</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canPush" id="editCanPush" value="true">
+                                <label class="form-check-label" for="editCanPush">可推动</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canTame" id="editCanTame" value="true">
+                                <label class="form-check-label" for="editCanTame">可驯服</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-bar-chart"></i> 属性值</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">生命值 (HP)</label>
+                            <input type="number" class="form-control" name="health" id="editHealth" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">命中</label>
+                            <input type="number" class="form-control" name="accuracy" id="editAccuracy" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">敏捷</label>
+                            <input type="number" class="form-control" name="agility" id="editAgility" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">最小防御(AC)</label>
+                            <input type="number" class="form-control" name="minAC" id="editMinAC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最大防御(AC)</label>
+                            <input type="number" class="form-control" name="maxAC" id="editMaxAC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最小魔防(MR)</label>
+                            <input type="number" class="form-control" name="minMR" id="editMinMR" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最大魔防(MR)</label>
+                            <input type="number" class="form-control" name="maxMR" id="editMaxMR" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">最小攻击(DC)</label>
+                            <input type="number" class="form-control" name="minDC" id="editMinDC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最大攻击(DC)</label>
+                            <input type="number" class="form-control" name="maxDC" id="editMaxDC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最小魔法(MC)</label>
+                            <input type="number" class="form-control" name="minMC" id="editMinMC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最大魔法(MC)</label>
+                            <input type="number" class="form-control" name="maxMC" id="editMaxMC" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">最小道术(SC)</label>
+                            <input type="number" class="form-control" name="minSC" id="editMinSC" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最大道术(SC)</label>
+                            <input type="number" class="form-control" name="maxSC" id="editMaxSC" min="0" max="9999999">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted me-auto"><i class="bi bi-exclamation-triangle"></i> 需要 SuperAdmin 权限</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary" id="monsterSubmitBtn">
+                        <i class="bi bi-check-lg"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+var isCreateMode = false;
+
+function fillSpawnMonster(monsterIndex, monsterName) {
+    document.getElementById('spawnMonsterIndex').value = monsterIndex;
+    document.getElementById('spawnPlayerName').focus();
+}
+
+function createMonster() {
+    isCreateMode = true;
+    // Reset form
+    document.getElementById('monsterForm').reset();
+    document.getElementById('editMonsterIndex').value = '';
+    document.getElementById('monsterForm').action = '/Monsters?handler=CreateMonster';
+
+    // Set default values
+    document.getElementById('editLevel').value = 1;
+    document.getElementById('editExperience').value = 100;
+    document.getElementById('editViewRange').value = 7;
+    document.getElementById('editCoolEye').value = 0;
+    document.getElementById('editAttackDelay').value = 2500;
+    document.getElementById('editMoveDelay').value = 1800;
+    document.getElementById('editHealth').value = 100;
+    document.getElementById('editMinAC').value = 0;
+    document.getElementById('editMaxAC').value = 5;
+    document.getElementById('editMinMR').value = 0;
+    document.getElementById('editMaxMR').value = 0;
+    document.getElementById('editMinDC').value = 1;
+    document.getElementById('editMaxDC').value = 10;
+    document.getElementById('editMinMC').value = 0;
+    document.getElementById('editMaxMC').value = 0;
+    document.getElementById('editMinSC').value = 0;
+    document.getElementById('editMaxSC').value = 0;
+    document.getElementById('editAccuracy').value = 5;
+    document.getElementById('editAgility').value = 5;
+
+    // Update modal style
+    document.getElementById('monsterModalHeader').className = 'modal-header bg-success text-white';
+    document.getElementById('monsterModalTitle').innerHTML = '<i class="bi bi-plus-lg"></i> 新建怪物';
+    document.getElementById('monsterSubmitBtn').innerHTML = '<i class="bi bi-plus-lg"></i> 创建';
+
+    // Show modal
+    new bootstrap.Modal(document.getElementById('monsterModal')).show();
+}
+
+function editMonster(monsterIndex) {
+    isCreateMode = false;
+    document.getElementById('monsterForm').action = '/Monsters?handler=UpdateMonster';
+
+    // Update modal style
+    document.getElementById('monsterModalHeader').className = 'modal-header bg-primary text-white';
+    document.getElementById('monsterModalTitle').innerHTML = '<i class="bi bi-pencil"></i> 编辑怪物属性';
+    document.getElementById('monsterSubmitBtn').innerHTML = '<i class="bi bi-check-lg"></i> 保存修改';
+
+    // Fetch monster details
+    fetch(`/Monsters?handler=MonsterDetail&monsterIndex=${monsterIndex}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+                // Fill form
+                document.getElementById('editMonsterIndex').value = data.index;
+                document.getElementById('editMonsterName').value = data.monsterName;
+                document.getElementById('editLevel').value = data.level;
+                document.getElementById('editExperience').value = data.experience;
+                document.getElementById('editViewRange').value = data.viewRange;
+                document.getElementById('editCoolEye').value = data.coolEye;
+                document.getElementById('editAttackDelay').value = data.attackDelay;
+                document.getElementById('editMoveDelay').value = data.moveDelay;
+                document.getElementById('editIsBoss').checked = data.isBoss;
+                document.getElementById('editUndead').checked = data.undead;
+                document.getElementById('editCanPush').checked = data.canPush;
+                document.getElementById('editCanTame').checked = data.canTame;
+                document.getElementById('editHealth').value = data.health;
+                document.getElementById('editMinAC').value = data.minAC;
+                document.getElementById('editMaxAC').value = data.maxAC;
+                document.getElementById('editMinMR').value = data.minMR;
+                document.getElementById('editMaxMR').value = data.maxMR;
+                document.getElementById('editMinDC').value = data.minDC;
+                document.getElementById('editMaxDC').value = data.maxDC;
+                document.getElementById('editMinMC').value = data.minMC;
+                document.getElementById('editMaxMC').value = data.maxMC;
+                document.getElementById('editMinSC').value = data.minSC;
+                document.getElementById('editMaxSC').value = data.maxSC;
+                document.getElementById('editAccuracy').value = data.accuracy;
+                document.getElementById('editAgility').value = data.agility;
+
+                // Show modal
+                new bootstrap.Modal(document.getElementById('monsterModal')).show();
+            } else {
+                alert('加载怪物信息失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error);
+        });
+}
+</script>

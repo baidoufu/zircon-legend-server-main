@@ -1,0 +1,361 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Server.Envir;
+using Zircon.Server.Models;
+using Library.SystemModels;
+using Library;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Server.Web.Pages
+{
+    [Authorize]
+    public class ItemsModel : PageModel
+    {
+        public List<ItemViewModel> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public string? Keyword { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public string? ItemType { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public int CurrentPage { get; set; } = 1;
+
+        public int PageSize { get; set; } = 50;
+        public int TotalPages => (TotalCount + PageSize - 1) / PageSize;
+
+        public string? Message { get; set; }
+
+        public void OnGet()
+        {
+            LoadItems();
+        }
+
+        private void LoadItems()
+        {
+            try
+            {
+                if (SEnvir.ItemInfoList?.Binding == null) return;
+
+                var query = SEnvir.ItemInfoList.Binding.AsEnumerable();
+
+                // Keyword filter
+                if (!string.IsNullOrWhiteSpace(Keyword))
+                {
+                    query = query.Where(i =>
+                        (i.ItemName?.Contains(Keyword, System.StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        i.Index.ToString().Contains(Keyword));
+                }
+
+                // ItemType filter
+                if (!string.IsNullOrWhiteSpace(ItemType) && System.Enum.TryParse<ItemType>(ItemType, out var type))
+                {
+                    query = query.Where(i => i.ItemType == type);
+                }
+
+                TotalCount = query.Count();
+
+                Items = query
+                    .OrderBy(i => i.ItemType)
+                    .ThenBy(i => i.RequiredAmount)
+                    .Skip((CurrentPage - 1) * PageSize)
+                    .Take(PageSize)
+                    .Select(i => new ItemViewModel
+                    {
+                        Index = i.Index,
+                        ItemName = i.ItemName ?? "Unknown",
+                        ItemType = i.ItemType.ToString(),
+                        RequiredType = i.RequiredType.ToString(),
+                        RequiredAmount = i.RequiredAmount,
+                        Price = i.Price,
+                        StackSize = i.StackSize,
+                        Rarity = i.Rarity.ToString(),
+                        Effect = i.Effect.ToString()
+                    })
+                    .ToList();
+            }
+            catch
+            {
+                // Prevent enumeration errors
+            }
+        }
+
+        public IActionResult OnPostGiveItem(string playerName, int itemIndex, int count)
+        {
+            if (!HasPermission(AccountIdentity.Admin))
+            {
+                Message = "权限不足，需要 Admin 权限";
+                LoadItems();
+                return Page();
+            }
+
+            try
+            {
+                var player = SEnvir.Players.FirstOrDefault(p =>
+                    p?.Character?.CharacterName?.Equals(playerName, System.StringComparison.OrdinalIgnoreCase) == true);
+
+                if (player == null)
+                {
+                    Message = $"玩家 {playerName} 不在线";
+                    LoadItems();
+                    return Page();
+                }
+
+                var itemInfo = SEnvir.ItemInfoList?.Binding?.FirstOrDefault(i => i.Index == itemIndex);
+                if (itemInfo == null)
+                {
+                    Message = $"物品索引 {itemIndex} 不存在";
+                    LoadItems();
+                    return Page();
+                }
+
+                // Create item and give to player
+                var item = SEnvir.CreateFreshItem(itemInfo);
+                if (item != null)
+                {
+                    item.Count = count > 0 ? count : 1;
+                    if (player.CanGainItems(false, new ItemCheck(item, item.Count, item.Flags, item.ExpireTime)))
+                    {
+                        player.GainItem(item);
+                        Message = $"已给予 {playerName} {count}x {itemInfo.ItemName}";
+                        SEnvir.Log($"[Admin] 给予物品: {playerName} <- {count}x {itemInfo.ItemName}");
+                    }
+                    else
+                    {
+                        Message = $"{playerName} 背包已满";
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Message = $"操作失败: {ex.Message}";
+            }
+
+            LoadItems();
+            return Page();
+        }
+
+        // 获取物品详情 (AJAX)
+        public IActionResult OnGetItemDetail(int itemIndex)
+        {
+            if (!HasPermission(AccountIdentity.Admin))
+            {
+                return new JsonResult(new { success = false, message = "权限不足" });
+            }
+
+            try
+            {
+                var item = SEnvir.ItemInfoList?.Binding?.FirstOrDefault(i => i.Index == itemIndex);
+                if (item == null)
+                {
+                    return new JsonResult(new { success = false, message = "物品不存在" });
+                }
+
+                var detail = new ItemDetailViewModel
+                {
+                    Index = item.Index,
+                    ItemName = item.ItemName ?? "",
+                    ItemType = (int)item.ItemType,
+                    RequiredClass = (int)item.RequiredClass,
+                    RequiredGender = (int)item.RequiredGender,
+                    RequiredType = (int)item.RequiredType,
+                    RequiredAmount = item.RequiredAmount,
+                    Shape = item.Shape,
+                    Effect = (int)item.Effect,
+                    Image = item.Image,
+                    Durability = item.Durability,
+                    Price = item.Price,
+                    Weight = item.Weight,
+                    StackSize = item.StackSize,
+                    Rarity = (int)item.Rarity
+                };
+
+                return new JsonResult(new { success = true, data = detail });
+            }
+            catch (System.Exception ex)
+            {
+                return new JsonResult(new { success = false, message = ex.Message });
+            }
+        }
+
+        // 新建物品
+        public IActionResult OnPostCreateItem(
+            string itemName,
+            int itemType,
+            int requiredClass,
+            int requiredGender,
+            int requiredType,
+            int requiredAmount,
+            int shape,
+            int effect,
+            int image,
+            int durability,
+            int price,
+            int weight,
+            int stackSize,
+            int rarity)
+        {
+            if (!HasPermission(AccountIdentity.SuperAdmin))
+            {
+                Message = "权限不足，需要 SuperAdmin 权限";
+                LoadItems();
+                return Page();
+            }
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(itemName))
+                {
+                    Message = "物品名称不能为空";
+                    LoadItems();
+                    return Page();
+                }
+
+                var newItem = SEnvir.ItemInfoList?.CreateNewObject();
+                if (newItem == null)
+                {
+                    Message = "创建物品失败";
+                    LoadItems();
+                    return Page();
+                }
+
+                newItem.ItemName = itemName;
+                newItem.ItemType = (ItemType)itemType;
+                newItem.RequiredClass = (RequiredClass)requiredClass;
+                newItem.RequiredGender = (RequiredGender)requiredGender;
+                newItem.RequiredType = (RequiredType)requiredType;
+                newItem.RequiredAmount = requiredAmount;
+                newItem.Shape = shape;
+                newItem.Effect = (ItemEffect)effect;
+                newItem.Image = image;
+                newItem.Durability = durability;
+                newItem.Price = price;
+                newItem.Weight = weight;
+                newItem.StackSize = stackSize > 0 ? stackSize : 1;
+                newItem.Rarity = (Rarity)rarity;
+
+                Message = $"物品 [{newItem.Index}] {itemName} 创建成功";
+                SEnvir.Log($"[Admin] 新建物品: [{newItem.Index}] {itemName}");
+            }
+            catch (System.Exception ex)
+            {
+                Message = $"创建失败: {ex.Message}";
+            }
+
+            LoadItems();
+            return Page();
+        }
+
+        // 编辑物品
+        public IActionResult OnPostUpdateItem(
+            int itemIndex,
+            string itemName,
+            int itemType,
+            int requiredClass,
+            int requiredGender,
+            int requiredType,
+            int requiredAmount,
+            int shape,
+            int effect,
+            int image,
+            int durability,
+            int price,
+            int weight,
+            int stackSize,
+            int rarity)
+        {
+            if (!HasPermission(AccountIdentity.SuperAdmin))
+            {
+                Message = "权限不足，需要 SuperAdmin 权限";
+                LoadItems();
+                return Page();
+            }
+
+            try
+            {
+                var item = SEnvir.ItemInfoList?.Binding?.FirstOrDefault(i => i.Index == itemIndex);
+                if (item == null)
+                {
+                    Message = $"物品索引 {itemIndex} 不存在";
+                    LoadItems();
+                    return Page();
+                }
+
+                var oldName = item.ItemName;
+
+                item.ItemName = itemName;
+                item.ItemType = (ItemType)itemType;
+                item.RequiredClass = (RequiredClass)requiredClass;
+                item.RequiredGender = (RequiredGender)requiredGender;
+                item.RequiredType = (RequiredType)requiredType;
+                item.RequiredAmount = requiredAmount;
+                item.Shape = shape;
+                item.Effect = (ItemEffect)effect;
+                item.Image = image;
+                item.Durability = durability;
+                item.Price = price;
+                item.Weight = weight;
+                item.StackSize = stackSize > 0 ? stackSize : 1;
+                item.Rarity = (Rarity)rarity;
+
+                Message = $"物品 [{itemIndex}] {itemName} 已更新";
+                SEnvir.Log($"[Admin] 修改物品: [{itemIndex}] {oldName} -> {itemName}");
+            }
+            catch (System.Exception ex)
+            {
+                Message = $"修改失败: {ex.Message}";
+            }
+
+            LoadItems();
+            return Page();
+        }
+
+        private bool HasPermission(AccountIdentity required)
+        {
+            var permissionClaim = User.FindFirst("Permission")?.Value;
+            if (string.IsNullOrEmpty(permissionClaim)) return false;
+
+            if (int.TryParse(permissionClaim, out int permValue))
+            {
+                return permValue >= (int)required;
+            }
+            return false;
+        }
+    }
+
+    public class ItemViewModel
+    {
+        public int Index { get; set; }
+        public string ItemName { get; set; } = "";
+        public string ItemType { get; set; } = "";
+        public string RequiredType { get; set; } = "";
+        public int RequiredAmount { get; set; }
+        public int Price { get; set; }
+        public int StackSize { get; set; }
+        public string Rarity { get; set; } = "";
+        public string Effect { get; set; } = "";
+    }
+
+    public class ItemDetailViewModel
+    {
+        public int Index { get; set; }
+        public string ItemName { get; set; } = "";
+        public int ItemType { get; set; }
+        public int RequiredClass { get; set; }
+        public int RequiredGender { get; set; }
+        public int RequiredType { get; set; }
+        public int RequiredAmount { get; set; }
+        public int Shape { get; set; }
+        public int Effect { get; set; }
+        public int Image { get; set; }
+        public int Durability { get; set; }
+        public int Price { get; set; }
+        public int Weight { get; set; }
+        public int StackSize { get; set; }
+        public int Rarity { get; set; }
+    }
+}

@@ -1,0 +1,417 @@
+@page
+@model MapsModel
+@{
+    ViewData["Title"] = "地图管理";
+    ViewData["ActivePage"] = "Maps";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-0">地图管理</h4>
+        <small class="text-muted">地图列表、玩家传送、全服公告</small>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        @Model.Message
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Broadcast -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-megaphone"></i> 全服公告
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Broadcast" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="message" required placeholder="输入公告内容...">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-warning w-100">
+                    <i class="bi bi-send"></i> 发送公告
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Teleport -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-geo-alt"></i> 传送玩家
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Teleport" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">玩家名称</label>
+                <input type="text" class="form-control" name="playerName" required placeholder="在线玩家名称">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">目标地图ID</label>
+                <input type="number" class="form-control" name="mapIndex" id="teleportMapIndex" required placeholder="地图索引">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">X 坐标</label>
+                <input type="number" class="form-control" name="x" value="0" placeholder="0=随机">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Y 坐标</label>
+                <input type="number" class="form-control" name="y" value="0" placeholder="0=随机">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-arrow-right-circle"></i> 传送
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" class="form-control" name="Keyword" value="@Model.Keyword" placeholder="搜索地图名称...">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Maps Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-map"></i> 地图列表</span>
+        <div>
+            <button type="button" class="btn btn-success btn-sm me-2" onclick="createMap()">
+                <i class="bi bi-plus-lg"></i> 新建地图
+            </button>
+            <span class="badge bg-primary">共 @Model.Maps.Count 个地图</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>文件名</th>
+                        <th>等级限制</th>
+                        <th>尺寸</th>
+                        <th>玩家</th>
+                        <th>怪物</th>
+                        <th>随机传送</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Maps.Any())
+                    {
+                        @foreach (var map in Model.Maps)
+                        {
+                            <tr>
+                                <td><code>@map.Index</code></td>
+                                <td><strong>@map.Description</strong></td>
+                                <td><small class="text-muted">@map.FileName</small></td>
+                                <td>
+                                    @if (map.MinimumLevel > 0 || map.MaximumLevel > 0)
+                                    {
+                                        <span>@map.MinimumLevel - @map.MaximumLevel</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">无限制</span>
+                                    }
+                                </td>
+                                <td>@map.Width x @map.Height</td>
+                                <td>
+                                    @if (map.PlayerCount > 0)
+                                    {
+                                        <span class="badge bg-success">@map.PlayerCount</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                                <td>@map.MonsterCount</td>
+                                <td>
+                                    <span class="badge @(map.AllowRT == "允许" ? "bg-success" : "bg-danger")">@map.AllowRT</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary"
+                                                onclick="editMap(@map.Index)"
+                                                title="编辑地图">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success"
+                                                onclick="fillTeleport(@map.Index, '@map.Description')"
+                                                title="传送到此地图">
+                                            <i class="bi bi-geo-alt"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox display-6"></i>
+                                <p class="mb-0 mt-2">没有找到地图</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Map Modal (Create/Edit) -->
+<div class="modal fade" id="mapModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" id="mapModalHeader">
+                <h5 class="modal-title" id="mapModalTitle"><i class="bi bi-pencil"></i> 编辑地图</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="mapForm">
+                <div class="modal-body">
+                    <input type="hidden" name="mapIndex" id="editMapIndex">
+
+                    <!-- Basic Info -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> 基本信息</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">地图文件名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="fileName" id="editFileName" required placeholder="例如: 0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">地图名称</label>
+                            <input type="text" class="form-control" name="description" id="editDescription" placeholder="例如: 比奇省">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">小地图</label>
+                            <input type="number" class="form-control" name="miniMap" id="editMiniMap" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">技能延迟</label>
+                            <input type="number" class="form-control" name="skillDelay" id="editSkillDelay" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">光照设置</label>
+                            <select class="form-select" name="light" id="editLight">
+                                <option value="0">无 (None)</option>
+                                <option value="1">白天 (Dawn)</option>
+                                <option value="2">白天 (Day)</option>
+                                <option value="3">傍晚 (Evening)</option>
+                                <option value="4">夜晚 (Night)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">战斗设置</label>
+                            <select class="form-select" name="fight" id="editFight">
+                                <option value="0">安全区 (Safe)</option>
+                                <option value="1">普通 (Normal)</option>
+                                <option value="2">自由PK (Fight)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最低等级</label>
+                            <input type="number" class="form-control" name="minimumLevel" id="editMinimumLevel" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">最高等级</label>
+                            <input type="number" class="form-control" name="maximumLevel" id="editMaximumLevel" min="0" max="9999999">
+                        </div>
+                    </div>
+
+                    <!-- Flags -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-toggles"></i> 功能开关</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="allowRT" id="editAllowRT" value="true">
+                                <label class="form-check-label" for="editAllowRT">允许随机传送</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="allowTT" id="editAllowTT" value="true">
+                                <label class="form-check-label" for="editAllowTT">允许回城</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canHorse" id="editCanHorse" value="true">
+                                <label class="form-check-label" for="editCanHorse">允许骑马</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canMine" id="editCanMine" value="true">
+                                <label class="form-check-label" for="editCanMine">允许挖矿</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canMarriageRecall" id="editCanMarriageRecall" value="true">
+                                <label class="form-check-label" for="editCanMarriageRecall">允许夫妻传送</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="allowRecall" id="editAllowRecall" value="true">
+                                <label class="form-check-label" for="editAllowRecall">允许召唤</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rates -->
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-bar-chart"></i> 倍率设置 (0=使用全局配置)</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">怪物血量(%)</label>
+                            <input type="number" class="form-control" name="monsterHealth" id="editMonsterHealth" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">怪物伤害(%)</label>
+                            <input type="number" class="form-control" name="monsterDamage" id="editMonsterDamage" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">掉落倍率(%)</label>
+                            <input type="number" class="form-control" name="dropRate" id="editDropRate" min="0" max="9999999">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">经验倍率(%)</label>
+                            <input type="number" class="form-control" name="experienceRate" id="editExperienceRate" min="0" max="9999999">
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">金币倍率(%)</label>
+                            <input type="number" class="form-control" name="goldRate" id="editGoldRate" min="0" max="9999999">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted me-auto"><i class="bi bi-exclamation-triangle"></i> 需要 SuperAdmin 权限</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary" id="mapSubmitBtn">
+                        <i class="bi bi-check-lg"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+var isCreateMode = false;
+
+function fillTeleport(mapIndex, mapName) {
+    document.getElementById('teleportMapIndex').value = mapIndex;
+    document.querySelector('input[name="playerName"]').focus();
+}
+
+function createMap() {
+    isCreateMode = true;
+    // Reset form
+    document.getElementById('mapForm').reset();
+    document.getElementById('editMapIndex').value = '';
+    document.getElementById('mapForm').action = '/Maps?handler=CreateMap';
+
+    // Set default values
+    document.getElementById('editMiniMap').value = 0;
+    document.getElementById('editSkillDelay').value = 0;
+    document.getElementById('editLight').value = 2;
+    document.getElementById('editFight').value = 1;
+    document.getElementById('editMinimumLevel').value = 0;
+    document.getElementById('editMaximumLevel').value = 0;
+    document.getElementById('editAllowRT').checked = true;
+    document.getElementById('editAllowTT').checked = true;
+    document.getElementById('editCanHorse').checked = false;
+    document.getElementById('editCanMine').checked = false;
+    document.getElementById('editCanMarriageRecall').checked = true;
+    document.getElementById('editAllowRecall').checked = true;
+    document.getElementById('editMonsterHealth').value = 0;
+    document.getElementById('editMonsterDamage').value = 0;
+    document.getElementById('editDropRate').value = 0;
+    document.getElementById('editExperienceRate').value = 0;
+    document.getElementById('editGoldRate').value = 0;
+
+    // Update modal style
+    document.getElementById('mapModalHeader').className = 'modal-header bg-success text-white';
+    document.getElementById('mapModalTitle').innerHTML = '<i class="bi bi-plus-lg"></i> 新建地图';
+    document.getElementById('mapSubmitBtn').innerHTML = '<i class="bi bi-plus-lg"></i> 创建';
+
+    // Show modal
+    new bootstrap.Modal(document.getElementById('mapModal')).show();
+}
+
+function editMap(mapIndex) {
+    isCreateMode = false;
+    document.getElementById('mapForm').action = '/Maps?handler=UpdateMap';
+
+    // Update modal style
+    document.getElementById('mapModalHeader').className = 'modal-header bg-primary text-white';
+    document.getElementById('mapModalTitle').innerHTML = '<i class="bi bi-pencil"></i> 编辑地图';
+    document.getElementById('mapSubmitBtn').innerHTML = '<i class="bi bi-check-lg"></i> 保存修改';
+
+    // Fetch map details
+    fetch(`/Maps?handler=MapDetail&mapIndex=${mapIndex}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+                // Fill form
+                document.getElementById('editMapIndex').value = data.index;
+                document.getElementById('editFileName').value = data.fileName;
+                document.getElementById('editDescription').value = data.description;
+                document.getElementById('editMiniMap').value = data.miniMap;
+                document.getElementById('editSkillDelay').value = data.skillDelay;
+                document.getElementById('editLight').value = data.light;
+                document.getElementById('editFight').value = data.fight;
+                document.getElementById('editMinimumLevel').value = data.minimumLevel;
+                document.getElementById('editMaximumLevel').value = data.maximumLevel;
+                document.getElementById('editAllowRT').checked = data.allowRT;
+                document.getElementById('editAllowTT').checked = data.allowTT;
+                document.getElementById('editCanHorse').checked = data.canHorse;
+                document.getElementById('editCanMine').checked = data.canMine;
+                document.getElementById('editCanMarriageRecall').checked = data.canMarriageRecall;
+                document.getElementById('editAllowRecall').checked = data.allowRecall;
+                document.getElementById('editMonsterHealth').value = data.monsterHealth;
+                document.getElementById('editMonsterDamage').value = data.monsterDamage;
+                document.getElementById('editDropRate').value = data.dropRate;
+                document.getElementById('editExperienceRate').value = data.experienceRate;
+                document.getElementById('editGoldRate').value = data.goldRate;
+
+                // Show modal
+                new bootstrap.Modal(document.getElementById('mapModal')).show();
+            } else {
+                alert('加载地图信息失败: ' + result.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error);
+        });
+}
+</script>

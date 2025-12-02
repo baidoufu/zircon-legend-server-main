@@ -1,0 +1,157 @@
+@page
+@model PlayersModel
+@{
+    ViewData["Title"] = "在线玩家";
+    ViewData["ActivePage"] = "Players";
+}
+
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0">在线玩家</h4>
+            <small class="text-muted">当前在线 @Model.Players.Count 人</small>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="keyword" class="form-control" placeholder="搜索角色名或账户..."
+                       value="@Model.Keyword" style="width: 200px;" />
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i>
+                </button>
+                <a href="/Players" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (Model.Players.Count > 0)
+        {
+            <div class="table-responsive" style="min-height: 300px; overflow: visible;">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>角色名</th>
+                            <th>等级</th>
+                            <th>职业</th>
+                            <th>性别</th>
+                            <th>地图</th>
+                            <th>坐标</th>
+                            <th>金币</th>
+                            <th>元宝</th>
+                            <th>PK值</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var player in Model.Players)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@player.Name</strong>
+                                    <br /><small class="text-muted">@player.AccountEmail</small>
+                                </td>
+                                <td><span class="badge bg-primary">Lv.@player.Level</span></td>
+                                <td>@player.Class</td>
+                                <td>@player.Gender</td>
+                                <td>@player.MapName</td>
+                                <td>@player.LocationX, @player.LocationY</td>
+                                <td>@player.Gold.ToString("N0")</td>
+                                <td>@player.GameGold.ToString("N0")</td>
+                                <td>
+                                    @if (player.PKPoints > 0)
+                                    {
+                                        <span class="badge bg-danger">@player.PKPoints</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm dropup">
+                                        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-display="static">
+                                            操作
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <form method="post" asp-page-handler="Recall" class="d-inline">
+                                                    <input type="hidden" name="playerName" value="@player.Name" />
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="bi bi-person-plus me-2"></i>召唤到身边
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            <li>
+                                                <form method="post" asp-page-handler="Kick" class="d-inline">
+                                                    <input type="hidden" name="playerName" value="@player.Name" />
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="bi bi-box-arrow-right me-2"></i>踢下线
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            <li><hr class="dropdown-divider" /></li>
+                                            <li>
+                                                <a class="dropdown-item" href="/Accounts?keyword=@player.AccountEmail">
+                                                    <i class="bi bi-person-badge me-2"></i>查看账户
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox display-1"></i>
+                <p class="mt-3 mb-0">
+                    @if (!string.IsNullOrEmpty(Model.Keyword))
+                    {
+                        <span>没有找到匹配 "@Model.Keyword" 的玩家</span>
+                    }
+                    else
+                    {
+                        <span>当前没有在线玩家</span>
+                    }
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-header">
+                <i class="bi bi-info-circle me-2 text-primary"></i>
+                <strong class="me-auto">操作结果</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                @Model.Message
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    // 自动隐藏 Toast
+    setTimeout(function() {
+        var toasts = document.querySelectorAll('.toast');
+        toasts.forEach(function(toast) {
+            var bsToast = new bootstrap.Toast(toast);
+            bsToast.hide();
+        });
+    }, 3000);
+</script>
+}

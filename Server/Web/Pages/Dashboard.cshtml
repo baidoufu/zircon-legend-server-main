@@ -1,0 +1,195 @@
+@page
+@model DashboardModel
+@{
+    ViewData["Title"] = "仪表盘";
+    ViewData["ActivePage"] = "Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">服务器概览</h4>
+        <form method="get">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise me-1"></i>刷新数据
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card primary">
+            <div class="card-body">
+                <div class="stat-value">@Model.OnlineCount</div>
+                <div class="stat-label">
+                    <i class="bi bi-people me-1"></i>在线玩家
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <div class="stat-value">@Model.TotalAccounts</div>
+                <div class="stat-label">
+                    <i class="bi bi-person-badge me-1"></i>注册账户
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <div class="stat-value">@Model.MapCount</div>
+                <div class="stat-label">
+                    <i class="bi bi-map me-1"></i>活动地图
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card danger">
+            <div class="card-body">
+                <div class="stat-value">@Model.ServerStatus</div>
+                <div class="stat-label">
+                    <i class="bi bi-server me-1"></i>服务器状态
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- 服务器信息 -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-info-circle me-2"></i>服务器信息</span>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted">服务器时间</td>
+                            <td class="text-end">@Model.ServerTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">运行时长</td>
+                            <td class="text-end">@Model.UpTime</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">游戏端口</td>
+                            <td class="text-end">@Model.GamePort</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">管理端口</td>
+                            <td class="text-end">@Model.AdminPort</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">测试服务器</td>
+                            <td class="text-end">@(Model.IsTestServer ? "是" : "否")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">允许登录</td>
+                            <td class="text-end">
+                                @if (Model.AllowLogin)
+                                {
+                                    <span class="badge bg-success">是</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">否</span>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 倍率设置 -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-sliders me-2"></i>倍率设置
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted">经验倍率</td>
+                            <td class="text-end"><span class="badge bg-primary">@Model.ExpRate%</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">掉落倍率</td>
+                            <td class="text-end"><span class="badge bg-success">@Model.DropRate%</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">金币倍率</td>
+                            <td class="text-end"><span class="badge bg-warning text-dark">@Model.GoldRate%</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">最高等级</td>
+                            <td class="text-end">@Model.MaxLevel</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">最高转生</td>
+                            <td class="text-end">@Model.MaxRebirth</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 在线玩家预览 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people me-2"></i>在线玩家（最近 10 名）</span>
+                <a href="/Players" class="btn btn-sm btn-outline-primary">查看全部</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.RecentPlayers.Count > 0)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>角色名</th>
+                                    <th>等级</th>
+                                    <th>职业</th>
+                                    <th>地图</th>
+                                    <th>坐标</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var player in Model.RecentPlayers)
+                                {
+                                    <tr>
+                                        <td><strong>@player.Name</strong></td>
+                                        <td>@player.Level</td>
+                                        <td>@player.Class</td>
+                                        <td>@player.MapName</td>
+                                        <td>@player.LocationX, @player.LocationY</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-2 mb-0">当前没有在线玩家</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
