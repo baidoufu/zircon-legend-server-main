@@ -574,10 +574,13 @@ async function loadActionTypes() {
 async function fillRegionSelect(selectId, selectedValue = 0) {
     const regions = await loadRegions();
     const select = document.getElementById(selectId);
-    select.innerHTML = '<option value="0">-- 不设置区域 --</option>';
+    const target = Number(selectedValue);
+    const options = ['<option value="0">-- 不设置区域 --</option>'];
     regions.forEach(r => {
-        select.innerHTML += `<option value="${r.index}" ${r.index == selectedValue ? 'selected' : ''}>[${r.mapName}] ${escapeHtml(r.description)}</option>`;
+        const selected = Number(r.index) === target ? ' selected' : '';
+        options.push(`<option value="${r.index}"${selected}>[${escapeHtml(r.mapName)}] ${escapeHtml(r.description)}</option>`);
     });
+    select.innerHTML = options.join('');
 }
 
 // 填充对话类型下拉框
@@ -791,10 +794,11 @@ async function createEntryPage(npcIndex) {
 function viewNpcPage(pageIndex) {
     currentPageIndex = pageIndex;
     bootstrap.Modal.getInstance(document.getElementById('npcDetailModal'))?.hide();
-    const modal = new bootstrap.Modal(document.getElementById('npcPageModal'));
+    const modalElement = document.getElementById('npcPageModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     const content = document.getElementById('npcPageContent');
     content.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div></div>';
-    modal.show();
+    if (!modalElement.classList.contains('show')) modal.show();
     loadPageContent(pageIndex);
 }
 
@@ -1149,6 +1153,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentPageIndex) loadPageContent(currentPageIndex);
         } else ToastManager.error(result.message);
     };
+
+    // 保障关闭页面详情后清理冗余遮罩，避免无法操作
+    const npcPageModal = document.getElementById('npcPageModal');
+    npcPageModal?.addEventListener('hidden.bs.modal', () => {
+        if (!document.querySelector('.modal.show')) {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
+        }
+    });
 });
 </script>
 }
