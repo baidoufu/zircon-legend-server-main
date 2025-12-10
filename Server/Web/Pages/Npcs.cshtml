@@ -66,6 +66,7 @@
                         <th>图像</th>
                         <th>区域</th>
                         <th>地图</th>
+                        <th>坐标</th>
                         <th>入口页面</th>
                         <th>任务</th>
                         <th>操作</th>
@@ -91,6 +92,18 @@
                                     }
                                 </td>
                                 <td>@npc.MapName</td>
+                                <td>
+                                    @if (npc.IsOnline)
+                                    {
+                                        <span class="badge bg-success" title="在线">
+                                            <i class="bi bi-geo-alt-fill"></i> @npc.LocationX, @npc.LocationY
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted" title="离线">-</span>
+                                    }
+                                </td>
                                 <td>
                                     @if (npc.HasEntryPage)
                                     {
@@ -136,7 +149,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
+                            <td colspan="9" class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox display-6"></i>
                                 <p class="mb-0 mt-2">没有找到NPC</p>
                             </td>
@@ -178,7 +191,7 @@
 
 <!-- Create NPC Modal -->
 <div class="modal fade" id="createNpcModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-plus-lg"></i> 新建NPC</h5>
@@ -186,19 +199,46 @@
             </div>
             <form id="createNpcForm" method="post" asp-page-handler="CreateNpc">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">NPC名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="npcName" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">NPC名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="npcName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">图像编号</label>
+                            <input type="number" class="form-control" name="image" value="0" min="0">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">图像编号</label>
-                        <input type="number" class="form-control" name="image" value="0" min="0">
+
+                    <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt"></i> 位置设置</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">所在地图</label>
+                            <select class="form-select" name="mapIndex" id="createNpcMap" onchange="onCreateMapChange()">
+                                <option value="0">-- 选择地图 --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">区域</label>
+                            <select class="form-select" name="regionIndex" id="createNpcRegion" onchange="onCreateRegionChange()">
+                                <option value="0">-- 不设置区域 --</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">区域</label>
-                        <select class="form-select" name="regionIndex" id="createNpcRegion">
-                            <option value="0">-- 不设置区域 --</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">X 坐标</label>
+                            <input type="number" class="form-control" name="locationX" id="createNpcLocationX" value="0" min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Y 坐标</label>
+                            <input type="number" class="form-control" name="locationY" id="createNpcLocationY" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        可以选择区域（NPC会在区域内随机位置生成），或直接指定坐标。
+                        如果同时设置了区域和坐标，将使用指定的坐标。
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -796,8 +836,68 @@ function setupMapSearch(inputId, hiddenId, nameId) {
 
 // 显示创建NPC模态框
 async function showCreateNpcModal() {
-    await fillRegionSelect('createNpcRegion');
+    // 重置表单
+    document.getElementById('createNpcForm').reset();
+
+    // 加载地图列表
+    await fillMapSelect('createNpcMap');
+
+    // 清空区域列表
+    const regionSelect = document.getElementById('createNpcRegion');
+    regionSelect.innerHTML = '<option value="0">-- 先选择地图 --</option>';
+
+    // 重置坐标
+    document.getElementById('createNpcLocationX').value = 0;
+    document.getElementById('createNpcLocationY').value = 0;
+
     new bootstrap.Modal(document.getElementById('createNpcModal')).show();
+}
+
+// 新建NPC时地图变化处理
+async function onCreateMapChange() {
+    const mapIndex = document.getElementById('createNpcMap').value;
+    const regionSelect = document.getElementById('createNpcRegion');
+
+    if (!mapIndex || mapIndex === '0') {
+        regionSelect.innerHTML = '<option value="0">-- 先选择地图 --</option>';
+        return;
+    }
+
+    // 加载该地图的区域
+    regionSelect.innerHTML = '<option value="0">-- 加载中... --</option>';
+    try {
+        const res = await fetch(`/Npcs?handler=MapRegions&mapIndex=${mapIndex}`);
+        const result = await res.json();
+        if (result.success) {
+            regionSelect.innerHTML = '<option value="0">-- 不设置区域(使用坐标) --</option>';
+            result.data.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.index;
+                opt.textContent = `[${r.index}] ${r.description}`;
+                regionSelect.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        regionSelect.innerHTML = '<option value="0">-- 加载失败 --</option>';
+    }
+}
+
+// 新建NPC时区域变化处理
+async function onCreateRegionChange() {
+    const regionIndex = document.getElementById('createNpcRegion').value;
+    if (!regionIndex || regionIndex === '0') return;
+
+    // 获取区域中心坐标作为默认值
+    try {
+        const res = await fetch(`/Npcs?handler=RegionInfo&regionIndex=${regionIndex}`);
+        const result = await res.json();
+        if (result.success && result.data) {
+            document.getElementById('createNpcLocationX').value = result.data.centerX || 0;
+            document.getElementById('createNpcLocationY').value = result.data.centerY || 0;
+        }
+    } catch (e) {
+        console.error('获取区域信息失败:', e);
+    }
 }
 
 // 加载在线NPC

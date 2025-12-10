@@ -42,6 +42,21 @@ namespace Server.Web.Pages
 
         private NpcViewModel ToViewModel(NPCInfo npc)
         {
+            // 查找在线NPC实例获取坐标
+            int locationX = 0, locationY = 0;
+            bool isOnline = false;
+            foreach (var map in SEnvir.Maps.Values)
+            {
+                var npcObj = map?.NPCs?.FirstOrDefault(n => n?.NPCInfo?.Index == npc.Index);
+                if (npcObj != null)
+                {
+                    locationX = npcObj.CurrentLocation.X;
+                    locationY = npcObj.CurrentLocation.Y;
+                    isOnline = true;
+                    break;
+                }
+            }
+
             return new NpcViewModel
             {
                 Index = npc.Index,
@@ -50,6 +65,9 @@ namespace Server.Web.Pages
                 RegionIndex = npc.Region?.Index ?? 0,
                 RegionName = npc.Region?.ServerDescription ?? "未设置",
                 MapName = npc.Region?.Map?.Description ?? "未知地图",
+                LocationX = locationX,
+                LocationY = locationY,
+                IsOnline = isOnline,
                 HasEntryPage = npc.EntryPage != null,
                 EntryPageIndex = npc.EntryPage?.Index ?? 0,
                 EntryPageDescription = npc.EntryPage?.Description ?? "",
@@ -148,7 +166,7 @@ namespace Server.Web.Pages
         }
 
         // 新建NPC
-        public IActionResult OnPostCreateNpc(string npcName, int image, int regionIndex)
+        public IActionResult OnPostCreateNpc(string npcName, int image, int regionIndex, int mapIndex = 0, int locationX = 0, int locationY = 0)
         {
             if (!HasPermission(AccountIdentity.SuperAdmin))
             {
@@ -183,14 +201,41 @@ namespace Server.Web.Pages
                 newNpc.NPCName = npcName;
                 newNpc.Image = image;
 
+                // 处理区域设置
                 if (regionIndex > 0)
                 {
                     var region = SEnvir.MapRegionList?.Binding?.FirstOrDefault(r => r.Index == regionIndex);
                     if (region != null)
                         newNpc.Region = region;
                 }
+                else if (mapIndex > 0)
+                {
+                    // 如果没有选择区域但选择了地图，创建或使用该地图的默认区域
+                    var map = SEnvir.MapInfoList?.Binding?.FirstOrDefault(m => m.Index == mapIndex);
+                    if (map != null)
+                    {
+                        // 查找或创建该地图的默认区域
+                        var region = SEnvir.MapRegionList?.Binding?.FirstOrDefault(r => r.Map?.Index == mapIndex);
+                        if (region != null)
+                        {
+                            newNpc.Region = region;
+                        }
+                    }
+                }
 
                 SEnvir.Log($"[Admin] 新建NPC: [{newNpc.Index}] {npcName}");
+
+                // 如果设置了坐标，生成NPC并移动到指定位置
+                if (locationX > 0 || locationY > 0)
+                {
+                    // 需要先生成NPC实例，然后移动到指定位置
+                    // 由于NPC需要在服务器运行时才能生成实例，这里先保存位置信息到日志
+                    SEnvir.Log($"[Admin] NPC [{newNpc.Index}] 设置坐标: ({locationX}, {locationY})");
+
+                    // 尝试生成NPC并移动到指定位置
+                    SpawnAndMoveNpc(newNpc, mapIndex, locationX, locationY);
+                }
+
                 var success = new { success = true, message = $"NPC [{newNpc.Index}] {npcName} 创建成功", data = ToViewModel(newNpc) };
                 if (IsAjaxRequest()) return new JsonResult(success);
                 Message = success.message;
@@ -204,6 +249,38 @@ namespace Server.Web.Pages
                 Message = result.message;
                 LoadNpcs();
                 return Page();
+            }
+        }
+
+        // 生成NPC并移动到指定位置
+        private void SpawnAndMoveNpc(NPCInfo npcInfo, int mapIndex, int locationX, int locationY)
+        {
+            if (npcInfo == null) return;
+
+            try
+            {
+                // 查找目标地图
+                var targetMap = SEnvir.Maps.Values.FirstOrDefault(m => m?.Info?.Index == mapIndex);
+                if (targetMap == null) return;
+
+                // 生成NPC
+                npcInfo.Spawn();
+
+                // 查找刚生成的NPC实例
+                foreach (var map in SEnvir.Maps.Values)
+                {
+                    var npcObj = map?.NPCs?.FirstOrDefault(n => n?.NPCInfo?.Index == npcInfo.Index);
+                    if (npcObj != null)
+                    {
+                        // 移动到指定位置
+                        MoveNpcToLocation(npcObj, targetMap, locationX, locationY);
+                        break;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                SEnvir.Log($"[Admin] 生成NPC并移动失败: {ex.Message}");
             }
         }
 
@@ -1161,6 +1238,45 @@ namespace Server.Web.Pages
             }
         }
 
+        // 获取区域信息（包括中心坐标）
+        public IActionResult OnGetRegionInfo(int regionIndex)
+        {
+            if (!HasPermission(AccountIdentity.Supervisor))
+                return new JsonResult(new { success = false, message = "权限不足" });
+
+            try
+            {
+                var region = SEnvir.MapRegionList?.Binding?.FirstOrDefault(r => r.Index == regionIndex);
+                if (region == null)
+                    return new JsonResult(new { success = false, message = "区域不存在" });
+
+                // 计算区域中心坐标
+                int centerX = 0, centerY = 0;
+                if (region.PointList != null && region.PointList.Count > 0)
+                {
+                    centerX = (int)region.PointList.Average(p => p.X);
+                    centerY = (int)region.PointList.Average(p => p.Y);
+                }
+
+                return new JsonResult(new {
+                    success = true,
+                    data = new {
+                        index = region.Index,
+                        description = region.Description ?? "",
+                        mapIndex = region.Map?.Index ?? 0,
+                        mapName = region.Map?.Description ?? "",
+                        centerX = centerX,
+                        centerY = centerY,
+                        pointCount = region.PointList?.Count ?? 0
+                    }
+                });
+            }
+            catch (System.Exception ex)
+            {
+                return new JsonResult(new { success = false, message = ex.Message });
+            }
+        }
+
         // 获取对话类型列表
         public IActionResult OnGetDialogTypes()
         {
@@ -1393,6 +1509,9 @@ namespace Server.Web.Pages
         public int RegionIndex { get; set; }
         public string RegionName { get; set; } = "";
         public string MapName { get; set; } = "";
+        public int LocationX { get; set; }
+        public int LocationY { get; set; }
+        public bool IsOnline { get; set; }
         public bool HasEntryPage { get; set; }
         public int EntryPageIndex { get; set; }
         public string EntryPageDescription { get; set; } = "";
