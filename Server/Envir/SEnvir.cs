@@ -1765,6 +1765,23 @@ namespace Server.Envir
             Session session = (Session)data;
             session.Commit();
 
+            // 更新 System.db Hash，使客户端能检测到数据变化并自动同步
+            try
+            {
+                var newDbFile = File.ReadAllBytes(@"./datas/Database/System.db");
+                var newHash = Functions.CalcMD5(newDbFile);
+                if (newHash != DbSystemFileHash)
+                {
+                    DbSystemFile = newDbFile;
+                    DbSystemFileHash = newHash;
+                    Log("[System] System.db Hash 已更新，客户端将在下次登录时同步新数据");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[System] 更新 System.db Hash 失败: {ex.Message}");
+            }
+
             foreach (IPNMessage message in HandledPayments)
             {
                 if (message.Duplicate)
