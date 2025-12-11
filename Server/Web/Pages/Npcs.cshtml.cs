@@ -324,25 +324,21 @@ namespace Server.Web.Pages
                 }
                 else
                 {
-                    // 没有实例，创建新的NPC实例（使用对象初始化器）
+                    // 没有实例，创建新的NPC实例
                     var npcObject = new Models.NPCObject
                     {
-                        NPCInfo = npcInfo,
-                        CurrentMap = targetMap,
-                        CurrentLocation = targetPoint
+                        NPCInfo = npcInfo
                     };
 
-                    var cell = targetMap.GetCell(targetPoint);
-                    if (cell != null)
+                    // 使用标准的 Spawn 方法生成 NPC
+                    // Spawn 会正确设置: CurrentCell, Spawned=true, 加入SEnvir.Objects链表, 调用OnSpawned()
+                    if (npcObject.Spawn(targetMap.Info, targetPoint))
                     {
-                        npcObject.CurrentCell = cell;
-                        cell.AddObject(npcObject);
-                        targetMap.NPCs?.Add(npcObject);
                         SEnvir.Log($"[Admin] NPC [{npcInfo.Index}] 已在 {targetMap.Info?.Description} ({locationX}, {locationY}) 生成");
                     }
                     else
                     {
-                        SEnvir.Log($"[Admin] 位置 ({locationX}, {locationY}) 无效，NPC将在服务器重启后在区域内随机生成");
+                        SEnvir.Log($"[Admin] 位置 ({locationX}, {locationY}) 无效或被阻挡，NPC将在服务器重启后在区域内随机生成");
                     }
                 }
             }
@@ -482,22 +478,24 @@ namespace Server.Web.Pages
                 var cell = targetMap.GetCell(location);
                 if (cell == null) return false;
 
-                // 从当前位置移除
-                if (fromMap != null && npcObject.CurrentCell != null)
+                // 从当前位置移除（Cell.RemoveObject 会同时从 Map.OrderedObjects 中移除）
+                if (npcObject.CurrentCell != null)
                 {
                     npcObject.CurrentCell.RemoveObject(npcObject);
                 }
 
-                // 设置新位置
+                // 如果地图变了，更新地图的 NPCs 列表
+                if (fromMap != null && fromMap != targetMap)
+                {
+                    fromMap.NPCs?.Remove(npcObject);
+                    targetMap.NPCs?.Add(npcObject);
+                    npcObject.CurrentMap = targetMap;
+                }
+
+                // 设置新位置并加入新的 Cell（Cell.AddObject 会同时加入 Map.OrderedObjects，使NPC可见）
                 npcObject.CurrentLocation = location;
                 npcObject.CurrentCell = cell;
-
-                // 如果地图变了，更新地图引用
-                if (fromMap != targetMap)
-                {
-                    fromMap?.NPCs?.Remove(npcObject);
-                    targetMap.NPCs?.Add(npcObject);
-                }
+                cell.AddObject(npcObject);
 
                 // 广播位置变更给附近玩家
                 npcObject.Broadcast(new Library.Network.ServerPackets.ObjectTurn
