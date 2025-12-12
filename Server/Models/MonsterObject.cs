@@ -784,22 +784,35 @@ namespace Zircon.Server.Models
         protected override void OnSpawned()
         {
             base.OnSpawned();
-            
+
             if (SpawnInfo != null && SpawnInfo.Info.EasterEventChance > 0 && SEnvir.Now < Config.EasterEventEnd)
                 EasterEventMob = SEnvir.Random.Next(SpawnInfo.Info.EasterEventChance) == 0;
 
             int offset = 1000000;
 
-            MapHealthRate = SEnvir.Random.Next(CurrentMap.Info.MonsterHealth + offset, CurrentMap.Info.MaxMonsterHealth + offset);
-            MapDamageRate = SEnvir.Random.Next(CurrentMap.Info.MonsterDamage + offset, CurrentMap.Info.MaxMonsterDamage + offset);
+            // 安全的随机倍率计算，确保 min <= max
+            int healthMin = CurrentMap.Info.MonsterHealth + offset;
+            int healthMax = CurrentMap.Info.MaxMonsterHealth + offset;
+            MapHealthRate = healthMax > healthMin ? SEnvir.Random.Next(healthMin, healthMax) : healthMin;
 
+            int damageMin = CurrentMap.Info.MonsterDamage + offset;
+            int damageMax = CurrentMap.Info.MaxMonsterDamage + offset;
+            MapDamageRate = damageMax > damageMin ? SEnvir.Random.Next(damageMin, damageMax) : damageMin;
+
+            int expMin = CurrentMap.Info.ExperienceRate + offset;
+            int expMax = CurrentMap.Info.MaxExperienceRate + offset;
             if (MapHealthRate >= CurrentMap.Info.ExperienceRate && MapHealthRate <= CurrentMap.Info.MaxExperienceRate)
                 MapExperienceRate = MapHealthRate;
             else
-                MapExperienceRate = SEnvir.Random.Next(CurrentMap.Info.ExperienceRate + offset, CurrentMap.Info.MaxExperienceRate + offset);
+                MapExperienceRate = expMax > expMin ? SEnvir.Random.Next(expMin, expMax) : expMin;
 
-            MapDropRate = SEnvir.Random.Next(CurrentMap.Info.DropRate + offset, CurrentMap.Info.MaxDropRate + offset);
-            MapGoldRate = SEnvir.Random.Next(CurrentMap.Info.GoldRate + offset, CurrentMap.Info.MaxGoldRate + offset);
+            int dropMin = CurrentMap.Info.DropRate + offset;
+            int dropMax = CurrentMap.Info.MaxDropRate + offset;
+            MapDropRate = dropMax > dropMin ? SEnvir.Random.Next(dropMin, dropMax) : dropMin;
+
+            int goldMin = CurrentMap.Info.GoldRate + offset;
+            int goldMax = CurrentMap.Info.MaxGoldRate + offset;
+            MapGoldRate = goldMax > goldMin ? SEnvir.Random.Next(goldMin, goldMax) : goldMin;
 
             MapHealthRate -= offset;
             MapDamageRate -= offset;
