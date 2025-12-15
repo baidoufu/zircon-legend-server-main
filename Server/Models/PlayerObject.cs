@@ -157,6 +157,8 @@ namespace Zircon.Server.Models
         public long TradeGold;
 
         public Dictionary<MagicType, UserMagic> Magics = new Dictionary<MagicType, UserMagic>();
+        // 以 MagicInfo.Index 为 key 的技能字典，支持同类型多技能
+        public Dictionary<int, UserMagic> MagicsByIndex = new Dictionary<int, UserMagic>();
 
         public List<AutoPotionLink> AutoPotions = new List<AutoPotionLink>();
         public CellLinkInfo DelayItemUse;
@@ -211,7 +213,11 @@ namespace Zircon.Server.Models
             ItemTime = SEnvir.Now;
 
             foreach (UserMagic magic in Character.Magics)
-                Magics[magic.Info.Magic] = magic;
+            {
+                // 同时存入两个字典
+                Magics[magic.Info.Magic] = magic;  // 兼容旧逻辑
+                MagicsByIndex[magic.Info.Index] = magic;  // 新逻辑：支持同类型多技能
+            }
 
             Buffs.AddRange(Character.Account.Buffs);
             Buffs.AddRange(Character.Buffs);
@@ -14621,9 +14627,21 @@ namespace Zircon.Server.Models
         }
         public void Magic(C.Magic p)
         {
-            UserMagic magic;
+            UserMagic magic = null;
 
-            if (!Magics.TryGetValue(p.Type, out magic) || Level < magic.Info.NeedLevel1)
+            // 优先使用 InfoIndex 查找（支持同类型多技能）
+            if (p.InfoIndex > 0)
+            {
+                MagicsByIndex.TryGetValue(p.InfoIndex, out magic);
+            }
+
+            // 如果 InfoIndex 无效或未找到，回退到 MagicType 查找（兼容旧客户端）
+            if (magic == null)
+            {
+                Magics.TryGetValue(p.Type, out magic);
+            }
+
+            if (magic == null || Level < magic.Info.NeedLevel1)
             {
                 Enqueue(new S.UserLocation { Direction = Direction, Location = CurrentLocation });
                 return;
@@ -20648,27 +20666,40 @@ namespace Zircon.Server.Models
         {
             if (info == null) return;
 
-            MonsterObject ob = Pets.FirstOrDefault(x => x.MonsterInfo == info);
-
-            if (ob != null)
-            {
-                ob.PetRecall();
-                return;
-            }
-
             // 获取数量上限（自定义或默认2）
             int maxCount = magic.Info.MaxSummonCount > 0 ? magic.Info.MaxSummonCount : 2;
 
             // 获取技能名称用于提示
             string skillName = !string.IsNullOrEmpty(magic.Info.Name) ? magic.Info.Name : "不死系宝宝";
 
-            if (Pets.Count >= maxCount)
+            // 统计当前同类型宠物数量
+            int sameTypeCount = Pets.Count(x => x.MonsterInfo == info);
+
+            // 如果 maxCount <= 1，保持原有召唤骷髅的行为（已有则召回）
+            if (maxCount <= 1)
+            {
+                MonsterObject existingPet = Pets.FirstOrDefault(x => x.MonsterInfo == info);
+                if (existingPet != null)
+                {
+                    existingPet.PetRecall();
+                    return;
+                }
+            }
+            // 如果 maxCount > 1，检查同类型宠物数量是否达到上限
+            else if (sameTypeCount >= maxCount)
             {
                 Connection.ReceiveChat($"召唤{skillName}不能超过【{maxCount}】只", MessageType.System);
                 return;
             }
 
-            ob = MonsterObject.GetMonster(info);
+            // 检查总宠物数量上限（使用 Pets.Count 作为总上限检查）
+            if (Pets.Count >= 200)
+            {
+                Connection.ReceiveChat($"宠物数量已达上限", MessageType.System);
+                return;
+            }
+
+            MonsterObject ob = MonsterObject.GetMonster(info);
 
             ob.PetOwner = this;
             Pets.Add(ob);

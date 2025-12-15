@@ -226,6 +226,7 @@ namespace Server.Web.Pages
                     // Add to player's magic list (Character.Magics is a DBModel list, player.Magics is MagicType dictionary)
                     player.Character.Magics.Add(userMagic);
                     player.Magics[magicInfo.Magic] = userMagic;
+                    player.MagicsByIndex[magicInfo.Index] = userMagic;  // 存入 Index 字典，支持同类型多技能
 
                     // Notify player
                     player.Enqueue(new Library.Network.ServerPackets.NewMagic { Magic = userMagic.ToClientInfo() });
@@ -413,6 +414,7 @@ namespace Server.Web.Pages
 
                         player.Character.Magics.Add(userMagic);
                         player.Magics[magicInfo.Magic] = userMagic;
+                        player.MagicsByIndex[magicInfo.Index] = userMagic;  // 存入 Index 字典，支持同类型多技能
 
                         player.Enqueue(new Library.Network.ServerPackets.NewMagic { Magic = userMagic.ToClientInfo() });
                         addedCount++;
@@ -495,6 +497,13 @@ namespace Server.Web.Pages
                     newMagic.BaseCost = skeletonMagic.BaseCost;
                     newMagic.LevelCost = skeletonMagic.LevelCost;
                     newMagic.Delay = skeletonMagic.Delay;
+                    // 复制升级所需经验值
+                    newMagic.Experience1 = skeletonMagic.Experience1;
+                    newMagic.Experience2 = skeletonMagic.Experience2;
+                    newMagic.Experience3 = skeletonMagic.Experience3;
+                    // 复制升级所需等级（NeedLevel1 由参数设置，复制2和3）
+                    newMagic.NeedLevel2 = skeletonMagic.NeedLevel2;
+                    newMagic.NeedLevel3 = skeletonMagic.NeedLevel3;
                 }
 
                 // 自动创建对应的技能书物品
