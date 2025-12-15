@@ -157,8 +157,6 @@ namespace Zircon.Server.Models
         public long TradeGold;
 
         public Dictionary<MagicType, UserMagic> Magics = new Dictionary<MagicType, UserMagic>();
-        // 以 MagicInfo.Index 为 key 的技能字典，支持同类型多技能
-        public Dictionary<int, UserMagic> MagicsByIndex = new Dictionary<int, UserMagic>();
 
         public List<AutoPotionLink> AutoPotions = new List<AutoPotionLink>();
         public CellLinkInfo DelayItemUse;
@@ -213,11 +211,7 @@ namespace Zircon.Server.Models
             ItemTime = SEnvir.Now;
 
             foreach (UserMagic magic in Character.Magics)
-            {
-                // 同时存入两个字典
-                Magics[magic.Info.Magic] = magic;  // 兼容旧逻辑
-                MagicsByIndex[magic.Info.Index] = magic;  // 新逻辑：支持同类型多技能
-            }
+                Magics[magic.Info.Magic] = magic;
 
             Buffs.AddRange(Character.Account.Buffs);
             Buffs.AddRange(Character.Buffs);
@@ -14627,21 +14621,9 @@ namespace Zircon.Server.Models
         }
         public void Magic(C.Magic p)
         {
-            UserMagic magic = null;
+            UserMagic magic;
 
-            // 优先使用 InfoIndex 查找（支持同类型多技能）
-            if (p.InfoIndex > 0)
-            {
-                MagicsByIndex.TryGetValue(p.InfoIndex, out magic);
-            }
-
-            // 如果 InfoIndex 无效或未找到，回退到 MagicType 查找（兼容旧客户端）
-            if (magic == null)
-            {
-                Magics.TryGetValue(p.Type, out magic);
-            }
-
-            if (magic == null || Level < magic.Info.NeedLevel1)
+            if (!Magics.TryGetValue(p.Type, out magic) || Level < magic.Info.NeedLevel1)
             {
                 Enqueue(new S.UserLocation { Direction = Direction, Location = CurrentLocation });
                 return;

@@ -146,7 +146,6 @@ namespace Library.Network.ClientPackets
         public MagicType Type { get; set; }
         public uint Target { get; set; }
         public Point Location { get; set; }
-        public int InfoIndex { get; set; }  // 技能信息索引，用于区分同类型的不同技能
     }
 
     [PacketMark(1021)]
