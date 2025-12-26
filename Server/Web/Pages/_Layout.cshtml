@@ -27,7 +27,7 @@
             </div>
             <ul class="nav flex-column mt-3">
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")" href="/Dashboard">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")" href="/Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="仪表盘">
                         <i class="bi bi-speedometer2"></i>
                         <span>仪表盘</span>
                     </a>
@@ -35,13 +35,13 @@
 
                 <li class="nav-section">玩家管理</li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Players" ? "active" : "")" href="/Players">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Players" ? "active" : "")" href="/Players" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="在线玩家">
                         <i class="bi bi-people"></i>
                         <span>在线玩家</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Accounts" ? "active" : "")" href="/Accounts" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="账户管理">
                         <i class="bi bi-person-badge"></i>
                         <span>账户管理</span>
                     </a>
@@ -49,37 +49,37 @@
 
                 <li class="nav-section">游戏管理</li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Items" ? "active" : "")" href="/Items">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Items" ? "active" : "")" href="/Items" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="物品管理">
                         <i class="bi bi-box-seam"></i>
                         <span>物品管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Maps" ? "active" : "")" href="/Maps">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Maps" ? "active" : "")" href="/Maps" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="地图管理">
                         <i class="bi bi-map"></i>
                         <span>地图管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Monsters" ? "active" : "")" href="/Monsters">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Monsters" ? "active" : "")" href="/Monsters" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="怪物管理">
                         <i class="bi bi-bug"></i>
                         <span>怪物管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Npcs" ? "active" : "")" href="/Npcs">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Npcs" ? "active" : "")" href="/Npcs" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="NPC管理">
                         <i class="bi bi-person-standing"></i>
                         <span>NPC管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Skills" ? "active" : "")" href="/Skills">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Skills" ? "active" : "")" href="/Skills" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="技能管理">
                         <i class="bi bi-lightning"></i>
                         <span>技能管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Classes" ? "active" : "")" href="/Classes">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Classes" ? "active" : "")" href="/Classes" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="职业管理">
                         <i class="bi bi-person-badge"></i>
                         <span>职业管理</span>
                     </a>
@@ -87,13 +87,13 @@
 
                 <li class="nav-section">系统</li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "System" ? "active" : "")" href="/System">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "System" ? "active" : "")" href="/System" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="系统管理">
                         <i class="bi bi-gear"></i>
                         <span>系统管理</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active" : "")" href="/Settings">
+                    <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active" : "")" href="/Settings" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="配置管理">
                         <i class="bi bi-sliders"></i>
                         <span>配置管理</span>
                     </a>

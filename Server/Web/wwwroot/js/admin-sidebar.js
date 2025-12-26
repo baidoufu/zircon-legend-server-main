@@ -18,7 +18,9 @@
         elements: {
             sidebar: null,
             mainContent: null,
-            toggleBtn: null
+            toggleBtn: null,
+            navLinks: null,
+            tooltips: []
         },
 
         // 当前状态
@@ -38,8 +40,14 @@
             // 如果侧边栏不存在（登录页面等），直接返回
             if (!this.elements.sidebar) return;
 
+            // 获取所有导航链接
+            this.elements.navLinks = this.elements.sidebar.querySelectorAll('.nav-link[data-bs-toggle="tooltip"]');
+
             // 创建切换按钮
             this.createToggleButton();
+
+            // 初始化 Bootstrap Tooltip
+            this.initTooltips();
 
             // 加载保存的状态
             this.loadState();
@@ -52,6 +60,30 @@
 
             // 应用初始状态
             this.applyState();
+        },
+
+        /**
+         * 初始化 Bootstrap Tooltip
+         */
+        initTooltips() {
+            // 销毁已存在的 tooltip 实例
+            this.elements.tooltips.forEach(tooltip => {
+                if (tooltip && tooltip.dispose) {
+                    tooltip.dispose();
+                }
+            });
+            this.elements.tooltips = [];
+
+            // 为每个导航链接创建 tooltip
+            this.elements.navLinks.forEach(link => {
+                const tooltip = new bootstrap.Tooltip(link, {
+                    placement: 'right',
+                    trigger: 'hover',
+                    delay: { show: 300, hide: 100 },
+                    boundary: 'window'
+                });
+                this.elements.tooltips.push(tooltip);
+            });
         },
 
         /**
@@ -165,9 +197,13 @@
             if (this.state.isCollapsed) {
                 this.elements.sidebar.classList.add('collapsed');
                 this.elements.mainContent.classList.add('expanded');
+                // 侧边栏收起时启用 tooltip
+                this.enableTooltips();
             } else {
                 this.elements.sidebar.classList.remove('collapsed');
                 this.elements.mainContent.classList.remove('expanded');
+                // 侧边栏展开时禁用 tooltip
+                this.disableTooltips();
             }
 
             // 更新切换按钮图标
@@ -178,6 +214,28 @@
 
             // 触发自定义事件
             this.dispatchEvent();
+        },
+
+        /**
+         * 启用所有 tooltip
+         */
+        enableTooltips() {
+            this.elements.tooltips.forEach(tooltip => {
+                if (tooltip && tooltip.enable) {
+                    tooltip.enable();
+                }
+            });
+        },
+
+        /**
+         * 禁用所有 tooltip
+         */
+        disableTooltips() {
+            this.elements.tooltips.forEach(tooltip => {
+                if (tooltip && tooltip.disable) {
+                    tooltip.disable();
+                }
+            });
         },
 
         /**
