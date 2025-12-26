@@ -413,6 +413,7 @@ body {
     padding: var(--spacing-md) var(--spacing-lg);
     vertical-align: middle;
     background: transparent !important;
+    color: var(--color-text-primary) !important;
 }
 
 .table tbody tr {
@@ -931,7 +932,7 @@ body {
 /* 移除 table-striped 的斑马纹（深色主题下不适用） */
 .table-striped > tbody > tr:nth-of-type(odd) > *,
 .table-striped > tbody > tr:nth-of-type(even) > * {
-    color: inherit;
+    color: var(--color-text-primary) !important;
     background-color: transparent !important;
 }
 
