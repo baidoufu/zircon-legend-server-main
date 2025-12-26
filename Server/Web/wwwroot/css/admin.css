@@ -412,14 +412,16 @@ body {
     border-bottom: 1px solid var(--color-border);
     padding: var(--spacing-md) var(--spacing-lg);
     vertical-align: middle;
+    background: transparent !important;
 }
 
 .table tbody tr {
     transition: background 0.15s ease;
+    background: transparent !important;
 }
 
 .table tbody tr:hover {
-    background: var(--color-surface-hover);
+    background: var(--color-surface-hover) !important;
 }
 
 /* ==================== 按钮样式 ==================== */
@@ -927,9 +929,10 @@ body {
 }
 
 /* 移除 table-striped 的斑马纹（深色主题下不适用） */
-.table-striped > tbody > tr:nth-of-type(odd) > * {
+.table-striped > tbody > tr:nth-of-type(odd) > *,
+.table-striped > tbody > tr:nth-of-type(even) > * {
     color: inherit;
-    background-color: transparent;
+    background-color: transparent !important;
 }
 
 /* ==================== 仪表盘服务器信息表格样式 ==================== */
