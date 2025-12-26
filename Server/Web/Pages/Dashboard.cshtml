@@ -69,30 +69,30 @@
                 <span><i class="bi bi-info-circle me-2"></i>服务器信息</span>
             </div>
             <div class="card-body">
-                <table class="table table-sm mb-0">
+                <table class="table table-sm server-info-table">
                     <tbody>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">服务器时间</td>
+                            <td>服务器时间</td>
                             <td class="text-end">@Model.ServerTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
                         </tr>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">运行时长</td>
+                            <td>运行时长</td>
                             <td class="text-end">@Model.UpTime</td>
                         </tr>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">游戏端口</td>
+                            <td>游戏端口</td>
                             <td class="text-end">@Model.GamePort</td>
                         </tr>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">管理端口</td>
+                            <td>管理端口</td>
                             <td class="text-end">@Model.AdminPort</td>
                         </tr>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">测试服务器</td>
+                            <td>测试服务器</td>
                             <td class="text-end">@(Model.IsTestServer ? "是" : "否")</td>
                         </tr>
                         <tr>
-                            <td style="color: var(--color-text-secondary);">允许登录</td>
+                            <td>允许登录</td>
                             <td class="text-end">
                                 @if (Model.AllowLogin)
                                 {

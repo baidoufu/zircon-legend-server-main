@@ -932,6 +932,34 @@ body {
     background-color: transparent;
 }
 
+/* ==================== 仪表盘服务器信息表格样式 ==================== */
+.server-info-table {
+    margin-bottom: 0;
+}
+
+.server-info-table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.server-info-table td:first-child {
+    background: var(--color-text-primary);
+    color: var(--color-bg-dark);
+    font-weight: 500;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.server-info-table td:last-child {
+    background: var(--color-bg-dark);
+    color: var(--color-text-primary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.server-info-table tr:last-child td {
+    border-bottom: none;
+}
+
 /* ==================== 打印样式 ==================== */
 @media print {
     .sidebar,
