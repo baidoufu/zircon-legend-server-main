@@ -969,7 +969,6 @@ body {
 .table-scrollable-card .card-body {
     flex: 1;
     overflow-y: auto;
-    overflow-x: visible;
     padding: 0;
 }
 
@@ -983,12 +982,6 @@ body {
     top: 0;
     z-index: 10;
     background: var(--color-bg-dark);
-}
-
-/* 确保操作列可以溢出 */
-.table-scrollable-card .table td:last-child {
-    overflow: visible;
-    position: relative;
 }
 
 /* 覆盖 Bootstrap 的 table-light 类 */

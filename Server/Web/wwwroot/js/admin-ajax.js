@@ -222,21 +222,25 @@ function confirmAction(message, callback) {
 
 // 修复表格内下拉菜单被遮挡问题
 const DropdownFixer = {
-    originalParent: null,
-    originalNextSibling: null,
+    menuData: new WeakMap(),
 
     init() {
         const self = this;
 
-        // 监听下拉菜单显示事件
-        document.addEventListener('shown.bs.dropdown', function(e) {
+        // 监听下拉菜单显示事件（使用 show 而不是 shown，更早处理）
+        document.addEventListener('show.bs.dropdown', function(e) {
             const toggle = e.target;
-            const menu = toggle.nextElementSibling;
+            if (!toggle.closest('.table')) return;
 
-            if (menu && menu.classList.contains('dropdown-menu') && toggle.closest('.table')) {
-                // 保存原始位置信息
-                self.originalParent = menu.parentNode;
-                self.originalNextSibling = menu.nextSibling;
+            const btnGroup = toggle.closest('.btn-group');
+            const menu = btnGroup ? btnGroup.querySelector('.dropdown-menu') : toggle.nextElementSibling;
+
+            if (menu && menu.classList.contains('dropdown-menu')) {
+                // 保存原始位置信息到 WeakMap
+                self.menuData.set(menu, {
+                    parent: menu.parentNode,
+                    nextSibling: menu.nextSibling
+                });
 
                 // 计算按钮位置
                 const rect = toggle.getBoundingClientRect();
@@ -245,42 +249,41 @@ const DropdownFixer = {
                 document.body.appendChild(menu);
 
                 // 设置固定定位
-                menu.style.position = 'fixed';
-                menu.style.zIndex = '9999';
-                menu.style.top = (rect.bottom + 2) + 'px';
-                menu.style.right = (window.innerWidth - rect.right) + 'px';
-                menu.style.left = 'auto';
-                menu.style.transform = 'none';
+                menu.style.cssText = `
+                    position: fixed !important;
+                    z-index: 9999 !important;
+                    top: ${rect.bottom + 2}px !important;
+                    right: ${window.innerWidth - rect.right}px !important;
+                    left: auto !important;
+                    transform: none !important;
+                    inset: auto !important;
+                `;
             }
         });
 
         // 监听下拉菜单隐藏事件
-        document.addEventListener('hidden.bs.dropdown', function(e) {
+        document.addEventListener('hide.bs.dropdown', function(e) {
             const toggle = e.target;
+            if (!toggle.closest('.table') && !self.menuData.size) return;
 
             // 查找 body 中的 dropdown-menu
             const menus = document.body.querySelectorAll(':scope > .dropdown-menu');
             menus.forEach(function(menu) {
-                // 重置样式
-                menu.style.position = '';
-                menu.style.zIndex = '';
-                menu.style.top = '';
-                menu.style.right = '';
-                menu.style.left = '';
-                menu.style.transform = '';
+                const data = self.menuData.get(menu);
+                if (data) {
+                    // 重置样式
+                    menu.style.cssText = '';
 
-                // 移回原位置
-                if (self.originalParent) {
-                    if (self.originalNextSibling) {
-                        self.originalParent.insertBefore(menu, self.originalNextSibling);
+                    // 移回原位置
+                    if (data.nextSibling) {
+                        data.parent.insertBefore(menu, data.nextSibling);
                     } else {
-                        self.originalParent.appendChild(menu);
+                        data.parent.appendChild(menu);
                     }
+
+                    self.menuData.delete(menu);
                 }
             });
-
-            self.originalParent = null;
-            self.originalNextSibling = null;
         });
     }
 };
